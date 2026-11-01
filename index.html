@@ -219,7 +219,7 @@ function usersView(){
   const order=Object.keys(ROLES);
   const list=cfg.users.slice().sort((a,b)=>order.indexOf(a.role)-order.indexOf(b.role));
   return `<div class="card"><h2>Upload users from Excel</h2>
-  <p class="mu">First sheet, with columns: <b>Name</b>, <b>Designation</b>, <b>Phone Number</b>. For surveyors, add a 4th column <b>Supervisor Phone</b> (the phone number of their VBDC Supervisor). Designation must contain: Surveyor, Supervisor, GP Level Nodal, Block Level Dealing, or Block Level Nodal.</p>
+  <p class="mu">First sheet, with columns: <b>Name</b>, <b>Designation</b>, <b>Phone Number</b>. For surveyors, add a 4th column <b>Supervisor Phone</b> (the phone number of their VBDC Supervisor). Designation must contain: Surveyor (or VST), Supervisor, GP Level Nodal, Block Level Dealing, or Block Level Nodal.</p>
   <p class="mu">Everyone except surveyors gets a login: <b>ID = phone number, starting password = ${DEFPW}</b>. Ask them to change it in the Password tab.</p>
   <button id="smp" class="g full" style="margin-bottom:8px">Download sample Excel file</button>
   <select id="mode" class="full" style="margin-bottom:8px"><option value="add">Add new / update existing</option><option value="rep">Replace all (delete everyone not in the file, except me)</option></select>
@@ -228,7 +228,7 @@ function usersView(){
   <div class="card"><h2>All users</h2><p class="mu">${cnt}</p><div class="scroll" style="max-height:420px;overflow-y:auto"><table>
   ${list.map(u=>{const s=cfg.users.find(x=>x.phone===u.sup);return `<tr><td>${esc(u.name)}<div class="mu">${esc(u.desig||ROLES[u.role])}</div></td><td>${u.phone}${u.role==='sur'?`<div class="mu">${s?esc(s.name):'⚠ no supervisor'}</div>`:''}</td><td>${u.phone===me.phone?'':`<button class="s" data-d="${u.phone}">Remove</button>`}</td></tr>`}).join('')}</table></div></div>`;
 }
-const roleOf=d=>{d=d.toLowerCase();return /surveyor/.test(d)?'sur':/supervisor/.test(d)?'bst':/dealing/.test(d)?'dealing':/gp/.test(d)?'gp':/nodal|block/.test(d)?'block':''};
+const roleOf=d=>{d=d.toLowerCase();return /surveyor|\bvst\b/.test(d)?'sur':/supervisor/.test(d)?'bst':/dealing/.test(d)?'dealing':/gp/.test(d)?'gp':/nodal|block/.test(d)?'block':''};
 async function makeLogins(list){
   const app2=initializeApp(firebaseConfig,'s'+Date.now()),sa=getAuth(app2);let made=0,fail=0;
   for(const r of list){try{await createUserWithEmailAndPassword(sa,r.phone+DOM,DEFPW);made++;await signOut(sa)}catch(e){if(e.code!=='auth/email-already-in-use')fail++}}
