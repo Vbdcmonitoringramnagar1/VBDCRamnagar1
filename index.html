@@ -80,8 +80,9 @@ const addDays=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);r
 const defDash=()=>({days:15,target:0,label:'Today survey count'});
 let cfg={users:[],dash:defDash()},reports={},me=null,tab='',vDate=today(),msg='',umsg='',emsg='',rSup='',lp='',ready=false,dirty=false,unsubs=[],boot=false;
 const sups=()=>cfg.users.filter(u=>u.role==='bst');
+const gpName=u=>{if(!u)return'';if(u.gp)return u.gp;const d=u.desig||'',i=d.indexOf('-');return i>0?d.slice(i+1).trim():u.name};
 const team=sp=>cfg.users.filter(u=>u.role==='sur'&&u.sup===sp);
-const val=e=>e.abs?0:(+e.a||0);
+const val=e=>+e.a||0;
 const fort=(sp,p,d)=>{const f=addDays(d,-(cfg.dash.days-1));let s=0;Object.values(reports).forEach(r=>{if(r.sup===sp&&r.date>=f&&r.date<=d){const e=r.entries.find(x=>x.p===p);if(e)s+=val(e)}});return s};
 const saveCfg=()=>setDoc(doc(fdb,'settings','main'),{dash:cfg.dash}).catch(()=>{});
 const refresh=()=>{if(me&&!dirty)draw()};
@@ -163,10 +164,10 @@ function entryView(sp,adm){
   const sv=sups(),rid=vDate+'_'+sp,rep=reports[rid],tm=team(sp),D=cfg.dash;
   const get=p=>(rep&&rep.entries.find(e=>e.p===p))||{};
   return `<div class="card"><div class="row sp"><h2>${adm?'Report database':'Daily report'}</h2><input type="date" id="dt" value="${vDate}" max="${today()}"></div>
-  ${adm?`<select id="ss" class="full" style="margin-bottom:8px">${sv.map(s=>`<option value="${s.phone}" ${s.phone===sp?'selected':''}>${esc(s.name)}</option>`).join('')}</select>`:''}
+  ${adm?`<select id="ss" class="full" style="margin-bottom:8px">${sv.map(s=>`<option value="${s.phone}" ${s.phone===sp?'selected':''}>${esc(gpName(s))} (${esc(s.name)})</option>`).join('')}</select>`:''}
   <p class="mu">${rep?'Saved earlier. You can edit and save again.':'Not yet submitted for this date.'}</p>
-  ${tm.length?`<div class="scroll"><table><tr><th>Surveyor</th><th>Absent</th><th>${esc(D.label)}</th><th>Last ${D.days} days</th></tr>
-  ${tm.map(u=>{const e=get(u.phone);return `<tr data-p="${u.phone}"><td>${esc(u.name)}</td><td><input type="checkbox" class="abs" ${e.abs?'checked':''}></td><td><input type="number" class="pv" min="0" value="${e.a??''}"></td><td class="sc">${fort(sp,u.phone,vDate)}</td></tr>`}).join('')}</table></div>
+  ${tm.length?`<div class="scroll"><table><tr><th>Surveyor</th><th>${esc(D.label)}</th><th>Last ${D.days} days</th></tr>
+  ${tm.map(u=>{const e=get(u.phone);return `<tr data-p="${u.phone}"><td>${esc(u.name)}</td><td><input type="number" class="pv" min="0" value="${e.a??''}"></td><td class="sc">${fort(sp,u.phone,vDate)}</td></tr>`}).join('')}</table></div>
   <button id="save" class="full" style="margin-top:12px">Save report</button>${adm&&rep?'<button id="del" class="g full" style="margin-top:8px">Delete this report</button>':''}`:'<p class="mu">No surveyors are assigned to this supervisor yet.</p>'}<p id="ok" class="ok">${esc(emsg)}</p></div>`;
 }
 function bindEntry(sp,adm){
@@ -176,7 +177,7 @@ function bindEntry(sp,adm){
   if(g('save'))g('save').onclick=async()=>{
     const entries=[];
     document.querySelectorAll('tr[data-p]').forEach(tr=>{const u=cfg.users.find(x=>x.phone===tr.dataset.p);
-      entries.push({p:u.phone,n:u.name,abs:tr.querySelector('.abs').checked,a:Math.max(0,Math.floor(+tr.querySelector('.pv').value||0))})});
+      entries.push({p:u.phone,n:u.name,a:Math.max(0,Math.floor(+tr.querySelector('.pv').value||0))})});
     const rid=vDate+'_'+sp,d={v:2,date:vDate,sup:sp,entries,by:me.name};
     g('save').disabled=true;g('save').textContent='Saving…';
     try{await setDoc(doc(fdb,'reports',rid),d);reports[rid]=d;emsg='Saved ✓';dirty=false;draw()}
@@ -187,7 +188,7 @@ function bindEntry(sp,adm){
 // ---------- Dashboard ----------
 function flat(from,to){const out=[];Object.values(reports).forEach(r=>{if(r.date>=from&&r.date<=to){
   const s=cfg.users.find(u=>u.phone===r.sup);
-  r.entries.forEach(e=>{const u=cfg.users.find(x=>x.phone===e.p);if(u&&s)out.push({p:e.p,n:u.name,sup:s.name,d:r.date,t:val(e),abs:e.abs})})}});return out}
+  r.entries.forEach(e=>{const u=cfg.users.find(x=>x.phone===e.p);if(u&&s)out.push({p:e.p,n:u.name,sup:gpName(s),d:r.date,t:val(e),abs:e.abs})})}});return out}
 const ct=(p,n,txt)=>{if(me.role!=='block')return'';const t=encodeURIComponent('Hello '+n+', '+txt+' Please improve your daily survey work. - Block Nodal Officer');
   return `<span class="ct"><a href="tel:+${CC}${p}" target="_blank" rel="noopener">📞</a><a href="https://wa.me/${CC}${p}?text=${t}" target="_blank" rel="noopener">💬</a><a href="sms:+${CC}${p}?body=${t}" target="_blank" rel="noopener">✉️</a></span>`};
 const tbl=rows=>rows.length?`<div class="scroll"><table>${rows.map((r,i)=>`<tr><td>${i+1}</td>${r.map((c,j)=>`<td class="${j===r.length-1?'sc':''}">${c}</td>`).join('')}</tr>`).join('')}</table></div>`:'<p class="mu">No data yet.</p>';
@@ -198,7 +199,7 @@ function dashView(){
   const D=cfg.dash,adm=me.role==='block',N=10,from=D.from||addDays(today(),-14);
   const grp=rows=>{const m={};rows.forEach(r=>{const x=m[r.p]=m[r.p]||{p:r.p,n:r.n,sup:r.sup,s:0,c:0};x.s+=r.t;x.c++});return Object.values(m)};
   const day=flat(vDate,vDate),per=grp(flat(from,vDate)),inc=grp(flat('0000-01-01','9999-12-31')).sort((a,b)=>b.s-a.s);
-  const dI=r=>({n:r.n,sub:r.sup+(r.abs?' · absent':''),v:r.t,low:D.target>0&&r.t<D.target,c:adm?ct(r.p,r.n,'your survey count on '+vDate+' was '+r.t+'.'):''});
+  const dI=r=>({n:r.n,sub:r.sup,v:r.t,low:D.target>0&&r.t<D.target,c:adm?ct(r.p,r.n,'your survey count on '+vDate+' was '+r.t+'.'):''});
   const pI=(r,c)=>({n:r.n,sub:r.sup+' · '+r.c+' days · avg '+(r.s/r.c).toFixed(1),v:r.s,c:c&&adm?ct(r.p,r.n,'your total survey count from '+from+' to '+vDate+' is '+r.s+' (average '+(r.s/r.c).toFixed(1)+' per day).'):''});
   const dsc=day.slice().sort((a,b)=>b.t-a.t),asc=day.slice().sort((a,b)=>a.t-b.t),pd=per.slice().sort((a,b)=>b.s-a.s),pa=per.slice().sort((a,b)=>a.s-b.s);
   const dates=Object.values(reports).map(r=>r.date).sort(),tot=inc.reduce((s,r)=>s+r.s,0);
@@ -219,7 +220,7 @@ function usersView(){
   const order=Object.keys(ROLES);
   const list=cfg.users.slice().sort((a,b)=>order.indexOf(a.role)-order.indexOf(b.role));
   return `<div class="card"><h2>Upload users from Excel</h2>
-  <p class="mu">First sheet, with columns: <b>Name</b>, <b>Designation</b>, <b>Phone Number</b>. For surveyors, add a 4th column <b>Supervisor Phone</b> (the phone number of their VBDC Supervisor). Designation must contain: Surveyor (or VST), Supervisor, GP Level Nodal, Block Level Dealing, or Block Level Nodal.</p>
+  <p class="mu">First sheet, with columns: <b>Name</b>, <b>Designation</b>, <b>Phone Number</b>. For surveyors, add a 4th column <b>Supervisor Phone</b> (the phone number of their VBDC Supervisor). Optional 5th column <b>GP Name</b> for supervisors (if empty, the GP name is taken from the designation text after the first hyphen, like SUPERVISOR-Talgachhari-II). Designation must contain: Surveyor (or VST), Supervisor, GP Level Nodal, Block Level Dealing, or Block Level Nodal.</p>
   <p class="mu">Everyone except surveyors gets a login: <b>ID = phone number, starting password = ${DEFPW}</b>. Ask them to change it in the Password tab.</p>
   <button id="smp" class="g full" style="margin-bottom:8px">Download sample Excel file</button>
   <select id="mode" class="full" style="margin-bottom:8px"><option value="add">Add new / update existing</option><option value="rep">Replace all (delete everyone not in the file, except me)</option></select>
@@ -251,10 +252,10 @@ function bindUsers(){
       const map=new Map();let skipped=0,nosup=0;
       rows.forEach(o=>{
         const name=pick(o,['name']),d=pick(o,['designation','role']),p=dg(pick(o,['phone','phonenumber','mobile','mobilenumber','mobileno','phoneno'])),role=roleOf(d);
-        const sup=dg(pick(o,['supervisorphone','supervisormobile','supervisor']));
+        const sup=dg(pick(o,['supervisorphone','supervisormobile','supervisor'])),gp=pick(o,['gpname','gp','grampanchayat','grampanchayatname']);
         if(!name||p.length!==10||!role||p===me.phone){skipped++;return}
         if(role==='sur'&&!sup)nosup++;
-        const rec={role,name,desig:d||ROLES[role],phone:p};if(role==='sur'&&sup)rec.sup=sup;
+        const rec={role,name,desig:d||ROLES[role],phone:p};if(role==='sur'&&sup)rec.sup=sup;if(role==='bst'&&gp)rec.gp=gp;
         map.set(p,rec)});
       say('Working…');
       const ops=[];
