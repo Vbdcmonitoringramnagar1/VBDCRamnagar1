@@ -89,7 +89,10 @@ const sups=()=>cfg.users.filter(u=>u.role==='bst');
 const gpName=u=>{if(!u)return'';if(u.gp)return u.gp;const d=u.desig||'',i=d.indexOf('-');return i>0?d.slice(i+1).trim():u.name};
 const team=sp=>cfg.users.filter(u=>u.role==='sur'&&u.sup===sp);
 const val=e=>+e.a||0;
-const fort=(sp,p,d)=>{const f=addDays(d,-(cfg.dash.days-1));let s=0;Object.values(reports).forEach(r=>{if(r.sup===sp&&r.date>=f&&r.date<=d){const e=r.entries.find(x=>x.p===p);if(e)s+=val(e)}});return s};
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fortStart=d=>d.slice(0,8)+(+d.slice(8,10)<=15?'01':'16');
+const fortLabel=d=>{const first=+d.slice(8,10)<=15,last=new Date(+d.slice(0,4),+d.slice(5,7),0).getDate();return (first?'1-15 ':'16-'+last+' ')+MON[+d.slice(5,7)-1]};
+const fort=(sp,p,d)=>{const f=fortStart(d);let s=0;Object.values(reports).forEach(r=>{if(r.sup===sp&&r.date>=f&&r.date<=d){const e=r.entries.find(x=>x.p===p);if(e)s+=val(e)}});return s};
 const saveCfg=()=>setDoc(doc(fdb,'settings','main'),{dash:cfg.dash}).catch(()=>{});
 const refresh=()=>{if(me&&!dirty)draw()};
 
@@ -184,7 +187,7 @@ function entryView(sp,adm){
   return `<div class="card"><div class="row sp"><h2>${adm?'Report database':'Daily report'}</h2><input type="date" id="dt" value="${vDate}" max="${today()}"></div>
   ${adm?`<select id="ss" class="full" style="margin-bottom:8px">${sv.map(s=>`<option value="${s.phone}" ${s.phone===sp?'selected':''}>${esc(gpName(s))} (${esc(s.name)})</option>`).join('')}</select>`:''}
   <p class="mu">${rep?'Saved earlier. You can edit and save again.':'Not yet submitted for this date.'}</p>
-  ${tm.length?`<div class="scroll"><table><tr><th>Surveyor</th><th>${esc(D.label)}</th><th>Last ${D.days} days</th></tr>
+  ${tm.length?`<div class="scroll"><table><tr><th>Surveyor</th><th>${esc(D.label)}</th><th>This fortnight (${fortLabel(vDate)})</th></tr>
   ${tm.map(u=>{const e=get(u.phone);return `<tr data-p="${u.phone}"><td>${esc(u.name)}</td><td><input type="number" class="pv" min="0" value="${e.a??''}"></td><td class="sc">${fort(sp,u.phone,vDate)}</td></tr>`}).join('')}</table></div>
   <button id="save" class="full" style="margin-top:12px">Save report</button>${adm&&rep?'<button id="del" class="g full" style="margin-top:8px">Delete this report</button>':''}`:'<p class="mu">No surveyors are assigned to this supervisor yet.</p>'}<p id="ok" class="ok">${esc(emsg)}</p></div>`;
 }
@@ -322,14 +325,14 @@ function formatView(){
   const D=cfg.dash;
   return `<div class="card"><h2>Dashboard settings</h2>
   <label>Count column name<br><input id="fl" class="full" value="${esc(D.label)}"></label>
-  <div class="row" style="margin-top:8px"><label>Entry sheet: show last … days<br><input id="fd" type="number" min="2" max="60" value="${D.days}"></label><label>Daily target (0 = none)<br><input id="fg" type="number" min="0" value="${D.target}"></label><label>Low average limit<br><input id="fa" type="number" min="1" value="${D.avgMin}"></label></div>
+  <div class="row" style="margin-top:8px"><label>Daily target (0 = none)<br><input id="fg" type="number" min="0" value="${D.target}"></label><label>Low average limit<br><input id="fa" type="number" min="1" value="${D.avgMin}"></label></div>
   <p class="mu">The dashboard always shows 10 names per list. Choose the period start date on the Dashboard tab.</p>
   <button id="sf" class="full" style="margin-top:12px">Save settings</button><p id="ok" class="ok"></p></div>`;
 }
 function bindFormat(){
   document.getElementById('sf').onclick=()=>{
     const g=id=>document.getElementById(id),D=cfg.dash;
-    D.label=g('fl').value.trim()||D.label;D.days=Math.max(2,Math.min(60,+g('fd').value||15));D.target=Math.max(0,+g('fg').value||0);D.avgMin=Math.max(1,+g('fa').value||20);
+    D.label=g('fl').value.trim()||D.label;D.target=Math.max(0,+g('fg').value||0);D.avgMin=Math.max(1,+g('fa').value||20);
     saveCfg();g('ok').textContent='Saved ✓';
   };
 }
