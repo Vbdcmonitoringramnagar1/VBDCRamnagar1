@@ -82,8 +82,10 @@ const iso=d=>d.toLocaleDateString('en-CA');
 const today=()=>iso(new Date());
 const addDays=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return iso(d)};
 const DEFMSG='Hello {name}, your survey count for {date} was {count} (average {avg} per day). Please improve your daily survey work. - Block Nodal Officer';
-const defDash=()=>({days:15,target:0,label:'Today survey count',avgMin:20,contact:false,msg:DEFMSG});
-const fillMsg=(n,v)=>(cfg.dash.msg||DEFMSG).replace(/\{name\}/g,n).replace(/\{date\}/g,v.date).replace(/\{count\}/g,v.count).replace(/\{avg\}/g,v.avg);
+const DEFSMSG='Hello {name}, the survey report for {date} has not been uploaded yet. Please upload it today. - Krishnendu Mallick, Block Nodal Officer';
+const defDash=()=>({days:15,target:0,label:'Today survey count',avgMin:20,msg:DEFMSG,smsg:DEFSMSG});
+const fillMsg=(n,v,t)=>(t||cfg.dash.msg||DEFMSG).replace(/\{name\}/g,n).replace(/\{date\}/g,v.date).replace(/\{count\}/g,v.count).replace(/\{avg\}/g,v.avg);
+let editU=null,fmsg='';
 let cfg={users:[],dash:defDash()},reports={},me=null,tab='',vDate=today(),msg='',umsg='',emsg='',rSup='',lp='',ready=false,dirty=false,unsubs=[],boot=false;
 const sups=()=>cfg.users.filter(u=>u.role==='bst');
 const gpName=u=>{if(!u)return'';if(u.gp)return u.gp;const d=u.desig||'',i=d.indexOf('-');return i>0?d.slice(i+1).trim():u.name};
@@ -103,9 +105,9 @@ onAuthStateChanged(auth,u=>{
   unsubs.push(onSnapshot(collection(fdb,'users'),sn=>{
     cfg.users=sn.docs.map(d=>d.data());
     const m=cfg.users.find(x=>x.phone===ph&&x.role!=='sur'),was=me;
-    if(m)me=m;
+    if(m){me=m;if(ph===ADMIN&&m.name==='Block Nodal Officer'&&!boot){boot=true;setDoc(doc(fdb,'users',ADMIN),{...m,name:'Krishnendu Mallick'}).catch(()=>{})}}
     else if(ph===ADMIN){me={role:'block',name:'Block Nodal Officer',phone:ADMIN,desig:ROLES.block};
-      if(!boot){boot=true;setDoc(doc(fdb,'users',ADMIN),{role:'block',name:'Block Nodal Officer',desig:ROLES.block,phone:ADMIN}).catch(()=>{})}}
+      if(!boot){boot=true;setDoc(doc(fdb,'users',ADMIN),{role:'block',name:'Krishnendu Mallick',desig:ROLES.block,phone:ADMIN}).catch(()=>{})}}
     else return bad();
     ready=true;if(!was){tab='';dirty=false}refresh();
   },bad));
@@ -127,7 +129,7 @@ function draw(){
   document.getElementById('out').onclick=()=>signOut(auth);
   a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;umsg='';emsg='';draw()});
   if(tab==='entry'||tab==='reports')bindEntry(sp,tab==='reports');if(tab==='reports')bindMsg();
-  if(tab==='dash'){document.getElementById('dt').onchange=e=>{vDate=e.target.value||today();draw()};const f=document.getElementById('fr');if(f)f.onchange=e=>{cfg.dash.from=e.target.value;saveCfg();draw()};const cb=document.getElementById('ctb');if(cb)cb.onclick=()=>{cfg.dash.contact=!cfg.dash.contact;saveCfg();draw()};a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>dl(b.dataset.x,b.dataset.f))}
+  if(tab==='dash'){document.getElementById('dt').onchange=e=>{vDate=e.target.value||today();draw()};const f=document.getElementById('fr');if(f)f.onchange=e=>{cfg.dash.from=e.target.value;saveCfg();draw()};const cb=document.getElementById('ctb');if(cb)cb.onclick=()=>{contactOn=!contactOn;try{localStorage.setItem('contactOn',contactOn?'1':'0')}catch(e){}draw()};a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>dl(b.dataset.x,b.dataset.f));a.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{const i=b.dataset.h;hid.has(i)?hid.delete(i):hid.add(i);try{localStorage.setItem('hid',JSON.stringify([...hid]))}catch(e){}draw()})}
   if(tab==='users')bindUsers();if(tab==='format')bindFormat();if(tab==='pw')bindPw();
   dirty=false;a.oninput=()=>{dirty=true};
 }
@@ -149,16 +151,17 @@ function bindLogin(){
   g('go').onclick=go;g('pw').onkeydown=e=>{if(e.key==='Enter')go()};
 }
 
-// ---------- Message to surveyors (admin) ----------
+// ---------- Messages (admin) ----------
 function msgView(){
-  return `<div class="card"><h2>Message to surveyors</h2><p class="mu">This text is typed into WhatsApp or SMS when you tap 💬 or ✉️ beside a surveyor on the dashboard. You can use {name}, {date}, {count} and {avg}; the app fills them in for each person.</p>
-  <textarea id="mt" rows="4" class="full">${esc(cfg.dash.msg||DEFMSG)}</textarea>
-  <div class="row" style="margin-top:8px"><button id="ms" class="full">Save message</button><button id="mr" class="g full">Use default message</button></div><p id="mo" class="ok"></p></div>`;
+  return `<div class="card"><h2>Messages for WhatsApp / SMS</h2><p class="mu">Typed into WhatsApp or SMS when you tap 💬 or ✉️. You can use {name}, {date}, {count} and {avg}; the app fills them in for each person.</p>
+  <b>To surveyors</b><textarea id="mt" rows="4" class="full" style="margin:4px 0 10px">${esc(cfg.dash.msg||DEFMSG)}</textarea>
+  <b>To supervisors whose report is not uploaded</b><textarea id="mt2" rows="3" class="full" style="margin:4px 0 10px">${esc(cfg.dash.smsg||DEFSMSG)}</textarea>
+  <div class="row"><button id="ms" class="full">Save messages</button><button id="mr" class="g full">Use default messages</button></div><p id="mo" class="ok"></p></div>`;
 }
 function bindMsg(){
   const g=id=>document.getElementById(id);
-  g('ms').onclick=()=>{cfg.dash.msg=g('mt').value.trim()||DEFMSG;saveCfg();g('mo').textContent='Saved ✓'};
-  g('mr').onclick=()=>{cfg.dash.msg=DEFMSG;saveCfg();g('mt').value=DEFMSG;g('mo').textContent='Default message restored ✓'};
+  g('ms').onclick=()=>{cfg.dash.msg=g('mt').value.trim()||DEFMSG;cfg.dash.smsg=g('mt2').value.trim()||DEFSMSG;saveCfg();g('mo').textContent='Saved ✓'};
+  g('mr').onclick=()=>{cfg.dash.msg=DEFMSG;cfg.dash.smsg=DEFSMSG;saveCfg();g('mt').value=DEFMSG;g('mt2').value=DEFSMSG;g('mo').textContent='Default messages restored ✓'};
 }
 
 // ---------- Password ----------
@@ -187,7 +190,7 @@ function entryView(sp,adm){
   return `<div class="card"><div class="row sp"><h2>${adm?'Report database':'Daily report'}</h2><input type="date" id="dt" value="${vDate}" max="${today()}"></div>
   ${adm?`<select id="ss" class="full" style="margin-bottom:8px">${sv.map(s=>`<option value="${s.phone}" ${s.phone===sp?'selected':''}>${esc(gpName(s))} (${esc(s.name)})</option>`).join('')}</select>`:''}
   <p class="mu">${rep?'Saved earlier. You can edit and save again.':'Not yet submitted for this date.'}</p>
-  ${tm.length?`<div class="scroll"><table><tr><th>Surveyor</th><th>${esc(D.label)}</th><th>This fortnight (${fortLabel(vDate)})</th></tr>
+  ${tm.length?`<div class="scroll"><table><tr><th>Surveyor</th><th>${esc(D.label)}</th><th>Cumulative report for this fortnight<div class="mu" style="text-transform:none;font-weight:400">(${fortLabel(vDate)})</div></th></tr>
   ${tm.map(u=>{const e=get(u.phone);return `<tr data-p="${u.phone}"><td>${esc(u.name)}</td><td><input type="number" class="pv" min="0" value="${e.a??''}"></td><td class="sc">${fort(sp,u.phone,vDate)}</td></tr>`}).join('')}</table></div>
   <button id="save" class="full" style="margin-top:12px">Save report</button>${adm&&rep?'<button id="del" class="g full" style="margin-top:8px">Delete this report</button>':''}`:'<p class="mu">No surveyors are assigned to this supervisor yet.</p>'}<p id="ok" class="ok">${esc(emsg)}</p></div>`;
 }
@@ -208,13 +211,17 @@ function bindEntry(sp,adm){
 
 // ---------- Dashboard ----------
 const EXP={};
-const ct=(p,n,v)=>{if(me.role!=='block'||!cfg.dash.contact)return'';const t=encodeURIComponent(fillMsg(n,v));
+const canC=()=>me.role==='block'||me.role==='dealing';
+let contactOn=(()=>{try{return localStorage.getItem('contactOn')==='1'}catch(e){return false}})();
+const hid=new Set((()=>{try{return JSON.parse(localStorage.getItem('hid')||'[]')}catch(e){return []}})());
+const ct=(p,n,v,tpl)=>{if(!canC()||!contactOn)return'';const t=encodeURIComponent(fillMsg(n,v,tpl));
   return `<span class="ct"><a href="tel:+${CC}${p}" target="_blank" rel="noopener">📞</a><a href="https://wa.me/${CC}${p}?text=${t}" target="_blank" rel="noopener">💬</a><a href="sms:+${CC}${p}?body=${t}" target="_blank" rel="noopener">✉️</a></span>`};
 const lst=(items,k)=>{if(!items.length)return'<p class="mu" style="padding:8px 0">No data yet.</p>';const mx=Math.max(1,...items.map(x=>x.v));
   return items.map((r,i)=>`<div class="it"><div class="rk ${k}">${i+1}</div><div class="in"><div class="nm2">${esc(r.n)}</div><div class="mu">${esc(r.sub)}</div><div class="mu">${esc(r.stat)}</div><div class="bar"><i class="${k}" style="width:${Math.max(3,Math.round(r.v/mx*100))}%"></i></div></div><div class="rt"><div class="sv ${k}${r.low?' low':''}">${r.v}</div>${r.c||''}</div></div>`).join('')};
-const sec=(k,title,sub,body,id)=>`<div class="card sec"><div class="hd ${k}">${title}${sub?`<small>${sub}</small>`:''}</div><div class="bd">${id&&EXP[id]?`<div class="xb"><button class="g" data-x="${id}" data-f="xlsx">⬇ Excel</button><button class="g" data-x="${id}" data-f="pdf">⬇ PDF</button></div>`:''}${body}</div></div>`;
+const sec=(k,title,sub,body,id)=>{const h=hid.has(id);
+  return `<div class="card sec"><div class="hd ${k}">${title}${sub?`<small>${sub}</small>`:''}</div><div class="bd"><div class="xb"><button class="g" data-h="${id}">${h?'Show details':'Hide details'}</button>${canC()&&EXP[id]?`<button class="g" data-x="${id}" data-f="xlsx">⬇ Excel</button><button class="g" data-x="${id}" data-f="pdf">⬇ PDF</button>`:''}</div>${h?'':body}</div></div>`};
 function dl(id,f){
-  const e=EXP[id];if(!e)return;
+  const e=EXP[id];if(!e||!canC())return;
   if(f==='xlsx'){if(typeof XLSX==='undefined')return alert('Excel library could not load.');
     const ws=XLSX.utils.aoa_to_sheet([[e.title],[e.sub],[],e.head,...e.rows]),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Report');XLSX.writeFile(wb,e.fname+'.xlsx')}
   else{if(!window.jspdf)return alert('PDF library could not load.');
@@ -222,7 +229,7 @@ function dl(id,f){
     d.autoTable({head:[e.head],body:e.rows,startY:70,styles:{fontSize:8},headStyles:{fillColor:[232,121,26]}});d.save(e.fname+'.pdf')}
 }
 function dashView(){
-  const D=cfg.dash,adm=me.role==='block',on=adm&&D.contact,N=10,from=D.from||addDays(today(),-14),per=from+' to '+vDate;
+  const D=cfg.dash,adm=me.role==='block',pv=canC(),on=pv&&contactOn,N=10,from=D.from||addDays(today(),-14),per=from+' to '+vDate;
   Object.keys(EXP).forEach(k=>delete EXP[k]);
   const st={};
   cfg.users.filter(u=>u.role==='sur').forEach(u=>{const s=cfg.users.find(x=>x.phone===u.sup);st[u.phone]={p:u.phone,n:u.name,gp:s?gpName(s):'-',today:null,s:0,c:0,si:0,ci:0}});
@@ -241,9 +248,15 @@ function dashView(){
   const mv=(x,m)=>m==='day'?{date:vDate,count:x.today===null?0:x.today,avg:f1(x.avg)}:{date:per,count:x.s,avg:f1(x.avg)};
   const stat=x=>`Today ${x.today===null?'-':x.today} · Avg ${f1(x.avg)}/day · Total ${x.s} (${x.c} days)`;
   const it=(x,v,m,lw)=>({n:x.n,sub:x.gp,stat:stat(x),v,low:lw,c:ct(x.p,x.n,mv(x,m))});
-  const reg=(id,title,sub,arr,inc)=>{EXP[id]={fname:id+'-'+vDate,title,sub,head:['#','Surveyor','GP','Today','Days','Avg/day','Total'].concat(adm?['Phone']:[]),
-    rows:arr.map((x,i)=>[i+1,x.n,x.gp,x.today===null?'':x.today,inc?x.ci:x.c,+f1(inc?x.avgi:x.avg),inc?x.si:x.s].concat(adm?[x.p]:[]))}};
+  const reg=(id,title,sub,arr,inc)=>{EXP[id]={fname:id+'-'+vDate,title,sub,head:['#','Surveyor','GP','Today','Days','Avg/day','Total'].concat(pv?['Phone']:[]),
+    rows:arr.map((x,i)=>[i+1,x.n,x.gp,x.today===null?'':x.today,inc?x.ci:x.c,+f1(inc?x.avgi:x.avg),inc?x.si:x.s].concat(pv?[x.p]:[]))}};
   const tb=(arr,cols,m)=>arr.length?`<div class="scroll"><table><tr><th>#</th><th>Surveyor</th>${cols.map(c=>`<th class="sc">${c[0]}</th>`).join('')}${on?'<th></th>':''}</tr>${arr.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.n)}<div class="mu">${esc(x.gp)}</div></td>${cols.map(c=>`<td class="sc">${c[1](x)}</td>`).join('')}${on?`<td>${ct(x.p,x.n,mv(x,m))}</td>`:''}</tr>`).join('')}</table></div>`:'<p class="mu" style="padding:8px 0">No data yet.</p>';
+  // supervisor upload status
+  const sv=cfg.users.filter(u=>u.role==='bst').map(u=>({u,ok:!!reports[vDate+'_'+u.phone]})).sort((a,b)=>a.ok-b.ok||a.u.name.localeCompare(b.u.name));
+  const yes=sv.filter(x=>x.ok).length;
+  EXP['sup-status']={fname:'supervisor-report-status-'+vDate,title:'Supervisor report status',sub:'Date '+vDate,head:['#','Supervisor','GP','Phone','Report uploaded'],rows:sv.map((x,i)=>[i+1,x.u.name,gpName(x.u),x.u.phone,x.ok?'YES':'NO'])};
+  const thanks='Hello {name}, thank you for uploading the survey report for {date}.';
+  const svBody=sv.length?sv.map((x,i)=>`<div class="it"><div class="rk ${x.ok?'best':'poor'}">${i+1}</div><div class="in"><div class="nm2">${esc(x.u.name)}</div><div class="mu">${esc(gpName(x.u))}</div></div><div class="rt"><div class="sv ${x.ok?'best':'poor'}">${x.ok?'YES':'NO'}</div>${ct(x.u.phone,x.u.name,{date:vDate,count:'',avg:''},x.ok?thanks:(D.smsg||DEFSMSG))}</div></div>`).join(''):'<p class="mu" style="padding:8px 0">No supervisors yet.</p>';
   reg('today-poor','Today poorest 10','Date '+vDate,tPoor);reg('today-best','Today best 10','Date '+vDate,tBest);
   reg('period-poor','Poorest 10 since period start','Period '+per,pPoor);reg('period-best','Best 10 since period start','Period '+per,pBest);
   reg('avg-low','Daily average below '+D.avgMin,'Period '+per,low);
@@ -251,8 +264,9 @@ function dashView(){
   reg('inception','Cumulative report since inception','Up to '+vDate,iAll,true);
   const tTot=rep.reduce((a,x)=>a+x.today,0),pTot=pAll.reduce((a,x)=>a+x.s,0),iTot=iAll.reduce((a,x)=>a+x.si,0);
   const dates=Object.values(reports).map(r=>r.date).sort();
-  return `${adm?`<div class="card datebar"><div><b>Call / WhatsApp / SMS</b><div class="mu">${on?'📞 💬 ✉️ shown beside every surveyor':'Hidden. Switch ON to show beside every surveyor'}</div></div><button id="ctb" class="tg ${on?'':'g'}">${on?'ON':'OFF'}</button></div>`:''}
+  return `${pv?`<div class="card datebar"><div><b>Call / WhatsApp / SMS</b><div class="mu">${on?'📞 💬 ✉️ shown beside every name':'Hidden. Switch ON to show beside every name'}</div></div><button id="ctb" class="tg ${on?'':'g'}">${on?'ON':'OFF'}</button></div>`:''}
   <div class="card datebar"><div><b>Report date</b><div class="mu">Dashboard shows data up to this day</div></div><input type="date" id="dt" value="${vDate}" max="${today()}"></div>
+  ${sec('all','📨 Today’s report uploaded?',vDate+' · '+yes+' YES · '+(sv.length-yes)+' NO',svBody,'sup-status')}
   ${sec('poor','⚠️ Today’s 10 poorest performers',vDate,lst(tPoor.map(x=>it(x,x.today,'day',D.target>0&&x.today<D.target)),'poor'),'today-poor')}
   ${sec('best','🏆 Today’s 10 best performers',vDate,lst(tBest.map(x=>it(x,x.today,'day',D.target>0&&x.today<D.target)),'best'),'today-best')}
   <div class="card datebar"><div><b>Period start date</b><div class="mu">${adm?'Choose the date to measure from':'Set by the Block Nodal Officer'}</div></div>${adm?`<input type="date" id="fr" value="${from}" max="${vDate}">`:`<b>${from}</b>`}</div>
@@ -265,11 +279,22 @@ function dashView(){
 }
 
 // ---------- Users (admin, Excel upload) ----------
+function userForm(){
+  const e=editU?cfg.users.find(u=>u.phone===editU):null,r=e?e.role:'sur',sv=sups();
+  return `<div class="card"><h2>${e?'Edit user':'Add one user'}</h2>
+  <input id="un" class="full" placeholder="Name" value="${esc(e?e.name:'')}" style="margin-bottom:8px">
+  <input id="up" class="full" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit phone number" value="${e?e.phone:''}" ${e?'readonly':''} style="margin-bottom:8px">
+  <select id="ur" class="full" style="margin-bottom:8px" ${e&&e.phone===me.phone?'disabled':''}>${Object.keys(ROLES).map(k=>`<option value="${k}" ${k===r?'selected':''}>${ROLES[k]}</option>`).join('')}</select>
+  <select id="us" class="full" style="margin-bottom:8px">${sv.map(s=>`<option value="${s.phone}" ${e&&e.sup===s.phone?'selected':''}>${esc(gpName(s))} · ${esc(s.name)}</option>`).join('')||'<option value="">No supervisors yet</option>'}</select>
+  <input id="ug" class="full" placeholder="GP name (for supervisors), e.g. Talgachhari-II" value="${esc(e&&e.gp?e.gp:'')}" style="margin-bottom:8px">
+  <div class="row"><button id="usv" class="full">${e?'Update user':'Add user'}</button>${e?'<button id="ucn" class="g full">Cancel</button>':''}</div>
+  <p id="uf" class="${fmsg.startsWith('✓')?'ok':'bad'}">${esc(fmsg)}</p></div>`;
+}
 function usersView(){
   const cnt=Object.keys(ROLES).map(k=>`${ROLES[k]}: <b>${cfg.users.filter(u=>u.role===k).length}</b>`).join(' · ');
   const order=Object.keys(ROLES);
   const list=cfg.users.slice().sort((a,b)=>order.indexOf(a.role)-order.indexOf(b.role));
-  return `<div class="card"><h2>Upload users from Excel</h2>
+  return userForm()+`<div class="card"><h2>Upload users from Excel</h2>
   <p class="mu">First sheet, with columns: <b>Name</b>, <b>Designation</b>, <b>Phone Number</b>. For surveyors, add a 4th column <b>Supervisor Phone</b> (the phone number of their VBDC Supervisor). Optional 5th column <b>GP Name</b> for supervisors (if empty, the GP name is taken from the designation text after the first hyphen, like SUPERVISOR-Talgachhari-II). Designation must contain: Surveyor (or VST), Supervisor, GP Level Nodal, Block Level Dealing, or Block Level Nodal.</p>
   <p class="mu">Everyone except surveyors gets a login: <b>ID = phone number, starting password = ${DEFPW}</b>. Ask them to change it in the Password tab.</p>
   <button id="smp" class="g full" style="margin-bottom:8px">Download sample Excel file</button>
@@ -277,7 +302,7 @@ function usersView(){
   <input type="file" id="fx" class="full" accept=".xlsx,.xls,.csv"><p class="${umsg.startsWith('✓')?'ok':'bad'}">${esc(umsg)}</p>
   <button id="mk" class="g full">Create missing logins</button></div>
   <div class="card"><h2>All users</h2><p class="mu">${cnt}</p><div class="scroll" style="max-height:420px;overflow-y:auto"><table>
-  ${list.map(u=>{const s=cfg.users.find(x=>x.phone===u.sup);return `<tr><td>${esc(u.name)}<div class="mu">${esc(u.desig||ROLES[u.role])}</div></td><td>${u.phone}${u.role==='sur'?`<div class="mu">${s?esc(s.name):'⚠ no supervisor'}</div>`:''}</td><td>${u.phone===me.phone?'':`<button class="s" data-d="${u.phone}">Remove</button>`}</td></tr>`}).join('')}</table></div></div>`;
+  ${list.map(u=>{const s=cfg.users.find(x=>x.phone===u.sup);return `<tr><td>${esc(u.name)}<div class="mu">${esc(u.desig||ROLES[u.role])}</div></td><td>${u.phone}${u.role==='sur'?`<div class="mu">${s?esc(s.name):'⚠ no supervisor'}</div>`:''}</td><td><button class="s" style="color:var(--ac)" data-e="${u.phone}">Edit</button>${u.phone===me.phone?'':` <button class="s" data-d="${u.phone}">Remove</button>`}</td></tr>`}).join('')}</table></div></div>`;
 }
 const roleOf=d=>{d=d.toLowerCase();return /surveyor|\bvst\b/.test(d)?'sur':/supervisor/.test(d)?'bst':/dealing/.test(d)?'dealing':/gp/.test(d)?'gp':/nodal|block/.test(d)?'block':''};
 async function makeLogins(list){
@@ -287,6 +312,19 @@ async function makeLogins(list){
 }
 function bindUsers(){
   const g=id=>document.getElementById(id),say=t=>{umsg=t;draw()};
+  const upd=()=>{const r=g('ur').value;g('us').style.display=r==='sur'?'':'none';g('ug').style.display=r==='bst'?'':'none'};g('ur').onchange=upd;upd();
+  const err=t=>{g('uf').className='bad';g('uf').textContent=t};
+  document.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{editU=b.dataset.e;fmsg='';draw();window.scrollTo(0,0)});
+  if(g('ucn'))g('ucn').onclick=()=>{editU=null;fmsg='';draw()};
+  g('usv').onclick=async()=>{
+    const name=g('un').value.trim(),ph=g('up').value.replace(/\D/g,'').slice(-10),role=editU&&editU===me.phone?'block':g('ur').value,old=cfg.users.find(u=>u.phone===ph);
+    if(!name||ph.length!==10)return err('Enter a name and a 10-digit phone number.');
+    if(role==='sur'&&!g('us').value)return err('Choose the supervisor for this surveyor.');
+    if(!editU&&old)return err('This phone number already exists. Tap Edit beside it to change it.');
+    const rec={role,name,desig:old&&old.role===role&&old.desig?old.desig:ROLES[role],phone:ph};
+    if(role==='sur')rec.sup=g('us').value;if(role==='bst'&&g('ug').value.trim())rec.gp=g('ug').value.trim();
+    try{await setDoc(doc(fdb,'users',ph),rec);let x='';if(role!=='sur'){const r=await makeLogins([rec]);if(r.made)x=' Login created (password '+DEFPW+').'}editU=null;fmsg='✓ Saved.'+x;draw()}
+    catch(e){err('Could not save ('+(e.code||'error')+').')}};
   document.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{try{await deleteDoc(doc(fdb,'users',b.dataset.d));say('✓ User removed. They can no longer see any data.')}catch(e){say('Could not remove this user.')}});
   g('mk').onclick=async()=>{say('Working…');const r=await makeLogins(cfg.users.filter(u=>u.role!=='sur'));say(`✓ ${r.made} new logins created.`+(r.fail?` ${r.fail} failed.`:''))};
   g('smp').onclick=()=>{const ws=XLSX.utils.aoa_to_sheet([['Name','Designation','Phone Number','Supervisor Phone'],['Ramesh Das','VBDC Supervisor','9000000011',''],['Sita Roy','VBDC Surveyor','8000000001','9000000011'],['Block Dealing Name','Block Level Dealing Official','9000000004',''],['GP Nodal Name','GP Level Nodal Officer','9000000003','']]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Users');XLSX.writeFile(wb,'users-sample.xlsx')};
