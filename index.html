@@ -135,7 +135,8 @@ function draw(){
   const sp=tab==='reports'?(rSup||(sups()[0]||{}).phone):me.phone;
   a.innerHTML=`<div class="banner"><div><h1>VBDC MONITORING, RAMNAGAR-I</h1><div class="sub">${esc(me.name)} · ${ROLES[me.role]}</div></div><button id="out">Log out</button></div>
   <div class="tabs">${T.map(t=>`<button class="${tab===t[0]?'on':''}" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>
-  ${tab==='entry'?entryView(sp,false):tab==='sp'?spView(sp,false,true):tab==='reports'?msgView()+entryView(sp,true)+spView(sp,true,false):tab==='dash'?dashView():tab==='users'?usersView():tab==='pw'?pwView():formatView()}`;
+  ${tab==='entry'?entryView(sp,false):tab==='sp'?spView(sp,false,true):tab==='reports'?msgView()+entryView(sp,true)+spView(sp,true,false):tab==='dash'?dashView():tab==='users'?usersView():tab==='pw'?pwView():formatView()}
+  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 8 · special activity + grid lines</div>`;
   document.getElementById('out').onclick=()=>signOut(auth);
   a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;umsg='';emsg='';spOk='';draw()});
   if(tab==='entry'||tab==='reports')bindEntry(sp,tab==='reports');if(tab==='sp')bindSp(sp,false,true);if(tab==='reports'){bindMsg();bindSp(sp,true,false)}
