@@ -63,6 +63,12 @@ th{color:var(--mu);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
 .sv.poor,.sv.low{color:var(--bad)}.sv.best{color:var(--ok)}
 .xb{display:flex;gap:6px;justify-content:flex-end;padding:8px 0 2px}.xb button{padding:5px 10px;font-size:13px}
 .tg{min-width:64px}
+table.grid{min-width:700px;border:1px solid rgba(128,128,128,.6);border-collapse:collapse}
+table.grid th,table.grid td{border:1px solid rgba(128,128,128,.55);padding:9px 6px;text-align:center;vertical-align:middle}
+table.grid th{white-space:normal;background:rgba(255,176,102,.28);font-size:12px;min-width:76px}
+table.grid th:nth-child(1),table.grid td:nth-child(1){min-width:36px;width:36px}
+table.grid th:nth-child(2),table.grid td:nth-child(2){text-align:left;white-space:nowrap;min-width:120px}
+table.grid tr:last-child td{font-weight:800;background:rgba(255,176,102,.2)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -277,7 +283,7 @@ function dashView(){
     const tot={};SPA.forEach(x=>tot[x[0]]=rows.reduce((s,r)=>s+r.v[x[0]],0));const gt=rows.reduce((s,r)=>s+r.t,0);
     const cell=(r,k)=>blank&&!r.any?'':r.v[k],tc=r=>blank&&!r.any?'':r.t;
     EXP[id]={fname:id+'-'+vDate,title,sub,head:['Sl','Gram Panchayat',...SPA.map(x=>x[1]),'Total'],rows:rows.map((r,i)=>[i+1,gpName(r.u),...SPA.map(x=>cell(r,x[0])),tc(r)]).concat([['','TOTAL',...SPA.map(x=>tot[x[0]]),gt]])};
-    return rows.length?`<div class="scroll"><table><tr><th>Sl</th><th>Gram Panchayat</th>${SPA.map(x=>`<th class="sc">${x[1]}</th>`).join('')}<th class="sc">Total</th></tr>${rows.map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(gpName(r.u))}</b></td>${SPA.map(x=>`<td class="sc">${cell(r,x[0])}</td>`).join('')}<td class="sc">${tc(r)}</td></tr>`).join('')}<tr><td></td><td><b>TOTAL</b></td>${SPA.map(x=>`<td class="sc">${tot[x[0]]}</td>`).join('')}<td class="sc">${gt}</td></tr></table></div>`:'<p class="mu" style="padding:8px 0">No supervisors yet.</p>'};
+    return rows.length?`<div class="mu" style="font-size:12px;padding:4px 0">Swipe sideways to see all columns</div><div class="scroll"><table class="grid"><tr><th>Sl</th><th>Gram Panchayat</th>${SPA.map(x=>`<th class="sc">${x[1]}</th>`).join('')}<th class="sc">Total</th></tr>${rows.map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(gpName(r.u))}</b></td>${SPA.map(x=>`<td class="sc">${cell(r,x[0])}</td>`).join('')}<td class="sc">${tc(r)}</td></tr>`).join('')}<tr><td></td><td><b>TOTAL</b></td>${SPA.map(x=>`<td class="sc">${tot[x[0]]}</td>`).join('')}<td class="sc">${gt}</td></tr></table></div>`:'<p class="mu" style="padding:8px 0">No supervisors yet.</p>'};
   const spv=SPN.map(u=>({u,ok:!!(reports[vDate+'_'+u.phone]&&reports[vDate+'_'+u.phone].sp)})).sort((a,b)=>a.ok-b.ok||gpName(a.u).localeCompare(gpName(b.u)));
   const spy=spv.filter(x=>x.ok).length,spthanks='Hello {name}, thank you for uploading the special activity report for {date}.';
   EXP['sp-status']={fname:'special-activity-status-'+vDate,title:'Special activity report updated?',sub:'Date '+vDate,head:['#','Supervisor','GP','Phone','Report uploaded'],rows:spv.map((x,i)=>[i+1,x.u.name,gpName(x.u),x.u.phone,x.ok?'YES':'NO'])};
