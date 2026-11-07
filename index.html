@@ -71,6 +71,9 @@ table.grid.wide{min-width:700px}table.grid.wide th{min-width:76px}
 table.grid.num th:nth-child(1),table.grid.num td:nth-child(1){min-width:36px;width:36px}
 table.grid.num th:nth-child(2),table.grid.num td:nth-child(2){text-align:left;white-space:nowrap;min-width:120px}
 table.grid.tot tr:last-child td{font-weight:800;background:rgba(255,176,102,.2)}
+#qov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.qbox{background:var(--card);color:var(--tx);width:100%;max-width:760px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+.qlist{max-height:40vh;overflow:auto;margin:6px 0 10px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -136,11 +139,11 @@ function draw(){
   a.innerHTML=`<div class="banner"><div><h1>VBDC MONITORING, RAMNAGAR-I</h1><div class="sub">${esc(me.name)} · ${ROLES[me.role]}</div></div><button id="out">Log out</button></div>
   <div class="tabs">${T.map(t=>`<button class="${tab===t[0]?'on':''}" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>
   ${tab==='entry'?entryView(sp,false):tab==='sp'?spView(sp,false,true):tab==='reports'?msgView()+entryView(sp,true)+spView(sp,true,false):tab==='dash'?dashView():tab==='users'?usersView():tab==='pw'?pwView():formatView()}
-  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 8 · special activity + grid lines</div>`;
-  document.getElementById('out').onclick=()=>signOut(auth);
+  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 9 · send-to-all queue</div>`;
+  document.getElementById('out').onclick=()=>{Q=null;renderQ();signOut(auth)};
   a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;umsg='';emsg='';spOk='';draw()});
   if(tab==='entry'||tab==='reports')bindEntry(sp,tab==='reports');if(tab==='sp')bindSp(sp,false,true);if(tab==='reports'){bindMsg();bindSp(sp,true,false)}
-  if(tab==='dash'){document.getElementById('dt').onchange=e=>{vDate=e.target.value||today();draw()};const f=document.getElementById('fr');if(f)f.onchange=e=>{cfg.dash.from=e.target.value;saveCfg();draw()};const sfi=document.getElementById('sf');if(sfi)sfi.onchange=e=>{cfg.dash.spFrom=e.target.value;saveCfg();draw()};const cb=document.getElementById('ctb');if(cb)cb.onclick=()=>{contactOn=!contactOn;try{localStorage.setItem('contactOn',contactOn?'1':'0')}catch(e){}draw()};a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>dl(b.dataset.x,b.dataset.f));a.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{const i=b.dataset.h;hid.has(i)?hid.delete(i):hid.add(i);try{localStorage.setItem('hid',JSON.stringify([...hid]))}catch(e){}draw()})}
+  if(tab==='dash'){document.getElementById('dt').onchange=e=>{vDate=e.target.value||today();draw()};const f=document.getElementById('fr');if(f)f.onchange=e=>{cfg.dash.from=e.target.value;saveCfg();draw()};const sfi=document.getElementById('sf');if(sfi)sfi.onchange=e=>{cfg.dash.spFrom=e.target.value;saveCfg();draw()};const cb=document.getElementById('ctb');if(cb)cb.onclick=()=>{contactOn=!contactOn;try{localStorage.setItem('contactOn',contactOn?'1':'0')}catch(e){}draw()};a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>dl(b.dataset.x,b.dataset.f));a.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{const i=b.dataset.h;hid.has(i)?hid.delete(i):hid.add(i);try{localStorage.setItem('hid',JSON.stringify([...hid]))}catch(e){}draw()});a.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const d=QD[b.dataset.q];if(!d)return;Q={title:d.title,ch:'wa',items:d.items.map(x=>({...x,done:false}))};renderQ()})}
   if(tab==='users')bindUsers();if(tab==='format')bindFormat();if(tab==='pw')bindPw();
   dirty=false;a.oninput=()=>{dirty=true};
 }
@@ -222,7 +225,26 @@ function bindEntry(sp,adm){
 }
 
 // ---------- Dashboard ----------
-const EXP={};
+const EXP={},QD={};
+let Q=null;
+function openLink(url){const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}
+function sendTo(x){const t=encodeURIComponent(x.msg);openLink(Q.ch==='wa'?`https://wa.me/${CC}${x.p}?text=${t}`:`sms:+${CC}${x.p}?body=${t}`);x.done=true;renderQ()}
+function renderQ(){
+  let o=document.getElementById('qov');
+  if(!Q){if(o)o.remove();return}
+  if(!o){o=document.createElement('div');o.id='qov';document.body.appendChild(o)}
+  const nxt=Q.items.findIndex(x=>!x.done),dn=Q.items.filter(x=>x.done).length;
+  o.innerHTML=`<div class="qbox"><div class="row sp"><b>📨 ${esc(Q.title)}</b><button class="g" id="qx">Close</button></div>
+  <div class="row" style="margin:10px 0"><button id="qwa" class="${Q.ch==='wa'?'':'g'}">WhatsApp</button><button id="qsm" class="${Q.ch==='sms'?'':'g'}">SMS</button></div>
+  <div class="mu">${dn} of ${Q.items.length} opened. Tap the big button, press Send in the app, then come back and tap it again.</div>
+  <div class="qlist">${Q.items.map((x,i)=>`<div class="it"><div class="rk ${x.done?'best':'poor'}">${x.done?'✓':i+1}</div><div class="in"><div class="nm2">${esc(x.n)}</div><div class="mu">${esc(x.gp)} · ${x.p}</div></div><button class="s" data-qi="${i}" style="color:var(--ac)">Open</button></div>`).join('')}</div>
+  <button id="qn" class="full" ${nxt<0?'disabled':''}>${nxt<0?'All done ✓':'Open next: '+esc(Q.items[nxt].n)}</button></div>`;
+  o.querySelector('#qx').onclick=()=>{Q=null;renderQ()};
+  o.querySelector('#qwa').onclick=()=>{Q.ch='wa';renderQ()};
+  o.querySelector('#qsm').onclick=()=>{Q.ch='sms';renderQ()};
+  o.querySelector('#qn').onclick=()=>{if(nxt>=0)sendTo(Q.items[nxt])};
+  o.querySelectorAll('[data-qi]').forEach(b=>b.onclick=()=>sendTo(Q.items[+b.dataset.qi]));
+}
 const canC=()=>me.role==='block'||me.role==='dealing';
 let contactOn=(()=>{try{return localStorage.getItem('contactOn')==='1'}catch(e){return false}})();
 const hid=new Set((()=>{try{return JSON.parse(localStorage.getItem('hid')||'[]')}catch(e){return []}})());
@@ -231,7 +253,7 @@ const ct=(p,n,v,tpl)=>{if(!canC()||!contactOn)return'';const t=encodeURIComponen
 const lst=(items,k)=>{if(!items.length)return'<p class="mu" style="padding:8px 0">No data yet.</p>';const mx=Math.max(1,...items.map(x=>x.v));
   return items.map((r,i)=>`<div class="it"><div class="rk ${k}">${i+1}</div><div class="in"><div class="nm2">${esc(r.n)}</div><div class="mu">${esc(r.sub)}</div><div class="mu">${esc(r.stat)}</div><div class="bar"><i class="${k}" style="width:${Math.max(3,Math.round(r.v/mx*100))}%"></i></div></div><div class="rt"><div class="sv ${k}${r.low?' low':''}">${r.v}</div>${r.c||''}</div></div>`).join('')};
 const sec=(k,title,sub,body,id)=>{const h=hid.has(id);
-  return `<div class="card sec"><div class="hd ${k}">${title}${sub?`<small>${sub}</small>`:''}</div><div class="bd"><div class="xb"><button class="g" data-h="${id}">${h?'Show details':'Hide details'}</button>${canC()&&EXP[id]?`<button class="g" data-x="${id}" data-f="xlsx">⬇ Excel</button><button class="g" data-x="${id}" data-f="pdf">⬇ PDF</button>`:''}</div>${h?'':body}</div></div>`};
+  return `<div class="card sec"><div class="hd ${k}">${title}${sub?`<small>${sub}</small>`:''}</div><div class="bd"><div class="xb"><button class="g" data-h="${id}">${h?'Show details':'Hide details'}</button>${canC()&&contactOn&&QD[id]&&QD[id].items.length?`<button class="g" data-q="${id}">📨 Send to all (${QD[id].items.length})</button>`:''}${canC()&&EXP[id]?`<button class="g" data-x="${id}" data-f="xlsx">⬇ Excel</button><button class="g" data-x="${id}" data-f="pdf">⬇ PDF</button>`:''}</div>${h?'':body}</div></div>`};
 function dl(id,f){
   const e=EXP[id];if(!e||!canC())return;
   if(f==='xlsx'){if(typeof XLSX==='undefined')return alert('Excel library could not load.');
@@ -242,7 +264,7 @@ function dl(id,f){
 }
 function dashView(){
   const D=cfg.dash,adm=me.role==='block',pv=canC(),on=pv&&contactOn,N=10,from=D.from||addDays(today(),-14),per=from+' to '+vDate;
-  Object.keys(EXP).forEach(k=>delete EXP[k]);
+  Object.keys(EXP).forEach(k=>delete EXP[k]);Object.keys(QD).forEach(k=>delete QD[k]);
   const st={};
   cfg.users.filter(u=>u.role==='sur').forEach(u=>{const s=cfg.users.find(x=>x.phone===u.sup);st[u.phone]={p:u.phone,n:u.name,gp:s?gpName(s):'-',today:null,s:0,c:0,si:0,ci:0}});
   Object.values(reports).forEach(r=>(r.entries||[]).forEach(e=>{const x=st[e.p];if(!x)return;const v=val(e);
@@ -269,6 +291,11 @@ function dashView(){
   EXP['sup-status']={fname:'supervisor-report-status-'+vDate,title:'Supervisor report status',sub:'Date '+vDate,head:['#','Supervisor','GP','Phone','Report uploaded'],rows:sv.map((x,i)=>[i+1,x.u.name,gpName(x.u),x.u.phone,x.ok?'YES':'NO'])};
   const thanks='Hello {name}, thank you for uploading the survey report for {date}.';
   const svBody=sv.length?sv.map((x,i)=>`<div class="it"><div class="rk ${x.ok?'best':'poor'}">${i+1}</div><div class="in"><div class="nm2">${esc(x.u.name)}</div><div class="mu">${esc(gpName(x.u))}</div></div><div class="rt"><div class="sv ${x.ok?'best':'poor'}">${x.ok?'YES':'NO'}</div>${ct(x.u.phone,x.u.name,{date:vDate,count:'',avg:''},x.ok?thanks:(D.smsg||DEFSMSG))}</div></div>`).join(''):'<p class="mu" style="padding:8px 0">No supervisors yet.</p>';
+  const qi=(arr,m)=>arr.map(x=>({p:x.p,n:x.n,gp:x.gp,msg:fillMsg(x.n,mv(x,m))}));
+  QD['today-poor']={title:'Today’s poorest performers',items:qi(tPoor,'day')};
+  QD['period-poor']={title:'Poorest performers since '+from,items:qi(pPoor,'per')};
+  QD['avg-low']={title:'Daily average below '+D.avgMin,items:qi(low,'per')};
+  QD['sup-status']={title:'Supervisors: survey report not uploaded',items:sv.filter(x=>!x.ok).map(x=>({p:x.u.phone,n:x.u.name,gp:gpName(x.u),msg:fillMsg(x.u.name,{date:vDate,count:'',avg:''},D.smsg||DEFSMSG)}))};
   reg('today-poor','Today poorest 10','Date '+vDate,tPoor);reg('today-best','Today best 10','Date '+vDate,tBest);
   reg('period-poor','Poorest 10 since period start','Period '+per,pPoor);reg('period-best','Best 10 since period start','Period '+per,pBest);
   reg('avg-low','Daily average below '+D.avgMin,'Period '+per,low);
@@ -291,6 +318,7 @@ function dashView(){
   const spy=spv.filter(x=>x.ok).length,spthanks='Hello {name}, thank you for uploading the special activity report for {date}.';
   EXP['sp-status']={fname:'special-activity-status-'+vDate,title:'Special activity report updated?',sub:'Date '+vDate,head:['#','Supervisor','GP','Phone','Report uploaded'],rows:spv.map((x,i)=>[i+1,x.u.name,gpName(x.u),x.u.phone,x.ok?'YES':'NO'])};
   const spBody=spv.length?spv.map((x,i)=>`<div class="it"><div class="rk ${x.ok?'best':'poor'}">${i+1}</div><div class="in"><div class="nm2">${esc(gpName(x.u))}</div><div class="mu">${esc(x.u.name)}</div></div><div class="rt"><div class="sv ${x.ok?'best':'poor'}">${x.ok?'YES':'NO'}</div>${ct(x.u.phone,x.u.name,{date:vDate,count:'',avg:''},x.ok?spthanks:(D.spmsg||DEFSPMSG))}</div></div>`).join(''):'<p class="mu" style="padding:8px 0">No supervisors yet.</p>';
+  QD['sp-status']={title:'Supervisors: special activity report not uploaded',items:spv.filter(x=>!x.ok).map(x=>({p:x.u.phone,n:x.u.name,gp:gpName(x.u),msg:fillMsg(x.u.name,{date:vDate,count:'',avg:''},D.spmsg||DEFSPMSG)}))};
   const spStatus=sec('all','🧹 Special activity report updated?',vDate+' · '+spy+' YES · '+(spv.length-spy)+' NO',spBody,'sp-status');
   const dTitle='Status of Special Pulse mode cleaning activity on '+dmy(vDate),spDates=Object.values(reports).filter(r=>r.sp).map(r=>r.date).sort();
   const spSections=sec('all','🧹 Daily special activity report',dTitle,spTbl(spSum(vDate,vDate),'sp-daily',dTitle,'Date '+vDate,true),'sp-daily')
