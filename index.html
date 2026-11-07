@@ -92,12 +92,16 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const iso=d=>d.toLocaleDateString('en-CA');
 const today=()=>iso(new Date());
 const addDays=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return iso(d)};
-const DEFMSG='Hello {name}, your survey count for {date} was {count} (average {avg} per day). Please improve your daily survey work. - Block Nodal Officer';
+const DEFMSG='Hello {name}, your survey count for {date} was {count} (average {avg} per day). Poorest-10 list: {poorFN} time(s) this fortnight, {poorAll} since inception. Best-10 list: {topFN} time(s) this fortnight, {topAll} since inception. Please improve your daily survey work. - Block Nodal Officer';
+const DEFGMSG='Dear all, please improve your daily survey work and upload your reports on time. - Krishnendu Mallick, Block Nodal Officer';
 const DEFSMSG='Hello {name}, the survey report for {date} has not been uploaded yet. Please upload it today. - Krishnendu Mallick, Block Nodal Officer';
 const SPA=[['pe','Perennial Spots','No of Perennial Spots Cleanliness Activity'],['mk','Market','No of Market Cleanliness Activity'],['sc','School','No of School Cleanliness Activity'],['ic','ICDS','No of ICDS Cleanliness Activity'],['hc','Health Centre','No of Health Centre Cleanliness Activity'],['go','Govt. Office','No of Government office Cleanliness Activity']];
 const DEFSPMSG='Hello {name}, the special activity report for {date} has not been uploaded yet. Please upload it today. - Krishnendu Mallick, Block Nodal Officer';
 const defDash=()=>({days:15,target:0,label:'Today survey count',avgMin:20,msg:DEFMSG,smsg:DEFSMSG,spmsg:DEFSPMSG});
-const fillMsg=(n,v,t)=>(t||cfg.dash.msg||DEFMSG).replace(/\{name\}/g,n).replace(/\{date\}/g,v.date).replace(/\{count\}/g,v.count).replace(/\{avg\}/g,v.avg);
+const fillMsg=(n,v,t)=>{const tpl=t||cfg.dash.msg||DEFMSG;
+  let m=tpl.replace(/\{name\}/g,n).replace(/\{date\}/g,v.date).replace(/\{count\}/g,v.count).replace(/\{avg\}/g,v.avg).replace(/\{poorFN\}/g,v.poorFN).replace(/\{poorAll\}/g,v.poorAll).replace(/\{topFN\}/g,v.topFN).replace(/\{topAll\}/g,v.topAll);
+  if(v.poorFN!==undefined&&!/\{(poorFN|poorAll|topFN|topAll)\}/.test(tpl))m+=' Poorest-10 list: '+v.poorFN+' time(s) this fortnight, '+v.poorAll+' since inception. Best-10 list: '+v.topFN+' time(s) this fortnight, '+v.topAll+' since inception.';
+  return m};
 let editU=null,fmsg='',spOk='';
 let cfg={users:[],dash:defDash()},reports={},me=null,tab='',vDate=today(),msg='',umsg='',emsg='',rSup='',lp='',ready=false,dirty=false,unsubs=[],boot=false;
 const sups=()=>cfg.users.filter(u=>u.role==='bst');
@@ -139,11 +143,11 @@ function draw(){
   a.innerHTML=`<div class="banner"><div><h1>VBDC MONITORING, RAMNAGAR-I</h1><div class="sub">${esc(me.name)} · ${ROLES[me.role]}</div></div><button id="out">Log out</button></div>
   <div class="tabs">${T.map(t=>`<button class="${tab===t[0]?'on':''}" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>
   ${tab==='entry'?entryView(sp,false):tab==='sp'?spView(sp,false,true):tab==='reports'?msgView()+entryView(sp,true)+spView(sp,true,false):tab==='dash'?dashView():tab==='users'?usersView():tab==='pw'?pwView():formatView()}
-  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 9 · send-to-all queue</div>`;
+  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 11 · group SMS + counts</div>`;
   document.getElementById('out').onclick=()=>{Q=null;renderQ();signOut(auth)};
   a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;umsg='';emsg='';spOk='';draw()});
   if(tab==='entry'||tab==='reports')bindEntry(sp,tab==='reports');if(tab==='sp')bindSp(sp,false,true);if(tab==='reports'){bindMsg();bindSp(sp,true,false)}
-  if(tab==='dash'){document.getElementById('dt').onchange=e=>{vDate=e.target.value||today();draw()};const f=document.getElementById('fr');if(f)f.onchange=e=>{cfg.dash.from=e.target.value;saveCfg();draw()};const sfi=document.getElementById('sf');if(sfi)sfi.onchange=e=>{cfg.dash.spFrom=e.target.value;saveCfg();draw()};const cb=document.getElementById('ctb');if(cb)cb.onclick=()=>{contactOn=!contactOn;try{localStorage.setItem('contactOn',contactOn?'1':'0')}catch(e){}draw()};a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>dl(b.dataset.x,b.dataset.f));a.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{const i=b.dataset.h;hid.has(i)?hid.delete(i):hid.add(i);try{localStorage.setItem('hid',JSON.stringify([...hid]))}catch(e){}draw()});a.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const d=QD[b.dataset.q];if(!d)return;Q={title:d.title,ch:'wa',items:d.items.map(x=>({...x,done:false}))};renderQ()})}
+  if(tab==='dash'){document.getElementById('dt').onchange=e=>{vDate=e.target.value||today();draw()};const f=document.getElementById('fr');if(f)f.onchange=e=>{cfg.dash.from=e.target.value;saveCfg();draw()};const sfi=document.getElementById('sf');if(sfi)sfi.onchange=e=>{cfg.dash.spFrom=e.target.value;saveCfg();draw()};const cb=document.getElementById('ctb');if(cb)cb.onclick=()=>{contactOn=!contactOn;try{localStorage.setItem('contactOn',contactOn?'1':'0')}catch(e){}draw()};a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>dl(b.dataset.x,b.dataset.f));a.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{const i=b.dataset.h;hid.has(i)?hid.delete(i):hid.add(i);try{localStorage.setItem('hid',JSON.stringify([...hid]))}catch(e){}draw()});a.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const d=QD[b.dataset.q];if(!d)return;Q={title:d.title,ch:'wa',group:cfg.dash.gmsg||DEFGMSG,items:d.items.map(x=>({...x,done:false}))};renderQ()})}
   if(tab==='users')bindUsers();if(tab==='format')bindFormat();if(tab==='pw')bindPw();
   dirty=false;a.oninput=()=>{dirty=true};
 }
@@ -167,7 +171,7 @@ function bindLogin(){
 
 // ---------- Messages (admin) ----------
 function msgView(){
-  return `<div class="card"><h2>Messages for WhatsApp / SMS</h2><p class="mu">Typed into WhatsApp or SMS when you tap 💬 or ✉️. You can use {name}, {date}, {count} and {avg}; the app fills them in for each person.</p>
+  return `<div class="card"><h2>Messages for WhatsApp / SMS</h2><p class="mu">Typed into WhatsApp or SMS when you tap 💬 or ✉️. You can use {name}, {date}, {count}, {avg}, {poorFN}, {poorAll}, {topFN} and {topAll} (times in the poorest-10 / best-10 list this fortnight and since inception); the app fills them in for each person.</p>
   <b>To surveyors</b><textarea id="mt" rows="4" class="full" style="margin:4px 0 10px">${esc(cfg.dash.msg||DEFMSG)}</textarea>
   <b>To supervisors whose report is not uploaded</b><textarea id="mt2" rows="3" class="full" style="margin:4px 0 10px">${esc(cfg.dash.smsg||DEFSMSG)}</textarea>
   <b>To supervisors whose special activity report is not uploaded</b><textarea id="mt3" rows="3" class="full" style="margin:4px 0 10px">${esc(cfg.dash.spmsg||DEFSPMSG)}</textarea>
@@ -237,6 +241,11 @@ function renderQ(){
   o.innerHTML=`<div class="qbox"><div class="row sp"><b>📨 ${esc(Q.title)}</b><button class="g" id="qx">Close</button></div>
   <div class="row" style="margin:10px 0"><button id="qwa" class="${Q.ch==='wa'?'':'g'}">WhatsApp</button><button id="qsm" class="${Q.ch==='sms'?'':'g'}">SMS</button></div>
   <div class="mu">${dn} of ${Q.items.length} opened. Tap the big button, press Send in the app, then come back and tap it again.</div>
+  <div style="margin:10px 0 4px"><b>Or send one message to everyone at once</b></div>
+  <textarea id="qg" rows="3" class="full">${esc(Q.group||'')}</textarea>
+  <div class="row" style="margin:6px 0"><button id="qgs" class="full">📩 One SMS to all (${Q.items.length})</button></div>
+  <div class="row" style="margin-bottom:6px"><button id="qgn" class="g full">Copy all numbers</button><button id="qgm" class="g full">Copy message</button></div>
+  <div class="mu">One SMS goes to everyone as a group message. It cannot carry each person’s own name or numbers, and everyone can see the other numbers. For WhatsApp, copy the message and numbers, then use a WhatsApp group or broadcast list (the numbers must be saved in your contacts).</div>
   <div class="qlist">${Q.items.map((x,i)=>`<div class="it"><div class="rk ${x.done?'best':'poor'}">${x.done?'✓':i+1}</div><div class="in"><div class="nm2">${esc(x.n)}</div><div class="mu">${esc(x.gp)} · ${x.p}</div></div><button class="s" data-qi="${i}" style="color:var(--ac)">Open</button></div>`).join('')}</div>
   <button id="qn" class="full" ${nxt<0?'disabled':''}>${nxt<0?'All done ✓':'Open next: '+esc(Q.items[nxt].n)}</button></div>`;
   o.querySelector('#qx').onclick=()=>{Q=null;renderQ()};
@@ -244,6 +253,12 @@ function renderQ(){
   o.querySelector('#qsm').onclick=()=>{Q.ch='sms';renderQ()};
   o.querySelector('#qn').onclick=()=>{if(nxt>=0)sendTo(Q.items[nxt])};
   o.querySelectorAll('[data-qi]').forEach(b=>b.onclick=()=>sendTo(Q.items[+b.dataset.qi]));
+  const gt=()=>{Q.group=o.querySelector('#qg').value;return Q.group};
+  o.querySelector('#qg').oninput=e=>{Q.group=e.target.value};
+  o.querySelector('#qgs').onclick=()=>openLink('sms:'+Q.items.map(x=>'+'+CC+x.p).join(',')+'?body='+encodeURIComponent(gt()));
+  const cp=async(b,t)=>{try{await navigator.clipboard.writeText(t);b.textContent='Copied ✓'}catch(e){b.textContent='Could not copy'}};
+  o.querySelector('#qgn').onclick=e=>cp(e.target,Q.items.map(x=>x.p).join(', '));
+  o.querySelector('#qgm').onclick=e=>cp(e.target,gt());
 }
 const canC=()=>me.role==='block'||me.role==='dealing';
 let contactOn=(()=>{try{return localStorage.getItem('contactOn')==='1'}catch(e){return false}})();
@@ -251,7 +266,7 @@ const hid=new Set((()=>{try{return JSON.parse(localStorage.getItem('hid')||'[]')
 const ct=(p,n,v,tpl)=>{if(!canC()||!contactOn)return'';const t=encodeURIComponent(fillMsg(n,v,tpl));
   return `<span class="ct"><a href="tel:+${CC}${p}" target="_blank" rel="noopener">📞</a><a href="https://wa.me/${CC}${p}?text=${t}" target="_blank" rel="noopener">💬</a><a href="sms:+${CC}${p}?body=${t}" target="_blank" rel="noopener">✉️</a></span>`};
 const lst=(items,k)=>{if(!items.length)return'<p class="mu" style="padding:8px 0">No data yet.</p>';const mx=Math.max(1,...items.map(x=>x.v));
-  return items.map((r,i)=>`<div class="it"><div class="rk ${k}">${i+1}</div><div class="in"><div class="nm2">${esc(r.n)}</div><div class="mu">${esc(r.sub)}</div><div class="mu">${esc(r.stat)}</div><div class="bar"><i class="${k}" style="width:${Math.max(3,Math.round(r.v/mx*100))}%"></i></div></div><div class="rt"><div class="sv ${k}${r.low?' low':''}">${r.v}</div>${r.c||''}</div></div>`).join('')};
+  return items.map((r,i)=>`<div class="it"><div class="rk ${k}">${i+1}</div><div class="in"><div class="nm2">${esc(r.n)}</div><div class="mu">${esc(r.sub)}</div><div class="mu">${esc(r.stat)}</div><div class="mu">${esc(r.stat2||'')}</div><div class="bar"><i class="${k}" style="width:${Math.max(3,Math.round(r.v/mx*100))}%"></i></div></div><div class="rt"><div class="sv ${k}${r.low?' low':''}">${r.v}</div>${r.c||''}</div></div>`).join('')};
 const sec=(k,title,sub,body,id)=>{const h=hid.has(id);
   return `<div class="card sec"><div class="hd ${k}">${title}${sub?`<small>${sub}</small>`:''}</div><div class="bd"><div class="xb"><button class="g" data-h="${id}">${h?'Show details':'Hide details'}</button>${canC()&&contactOn&&QD[id]&&QD[id].items.length?`<button class="g" data-q="${id}">📨 Send to all (${QD[id].items.length})</button>`:''}${canC()&&EXP[id]?`<button class="g" data-x="${id}" data-f="xlsx">⬇ Excel</button><button class="g" data-x="${id}" data-f="pdf">⬇ PDF</button>`:''}</div>${h?'':body}</div></div>`};
 function dl(id,f){
@@ -272,16 +287,22 @@ function dashView(){
     if(r.date>=from&&r.date<=vDate){x.s+=v;x.c++}
     x.si+=v;x.ci++}));
   const all=Object.values(st),f1=x=>x.toFixed(1);
-  all.forEach(x=>{x.avg=x.c?x.s/x.c:0;x.avgi=x.ci?x.si/x.ci:0});
+  all.forEach(x=>{x.avg=x.c?x.s/x.c:0;x.avgi=x.ci?x.si/x.ci:0;x.pf=0;x.pa=0;x.tf=0;x.ta=0});
+  {const fs=fortStart(vDate),byDate={};
+   Object.values(reports).forEach(r=>{if(r.date<=vDate)(r.entries||[]).forEach(e=>{if(st[e.p])(byDate[r.date]=byDate[r.date]||[]).push({x:st[e.p],v:val(e)})})});
+   Object.keys(byDate).forEach(d=>{const rows=byDate[d],cmp=(a,b)=>a.x.n.localeCompare(b.x.n);
+     rows.slice().sort((a,b)=>a.v-b.v||cmp(a,b)).slice(0,N).forEach(r=>{r.x.pa++;if(d>=fs)r.x.pf++});
+     rows.slice().sort((a,b)=>b.v-a.v||cmp(a,b)).slice(0,N).forEach(r=>{r.x.ta++;if(d>=fs)r.x.tf++})})}
   const rep=all.filter(x=>x.today!==null),pAll=all.filter(x=>x.c>0);
-  const tPoor=rep.slice().sort((a,b)=>a.today-b.today).slice(0,N),tBest=rep.slice().sort((a,b)=>b.today-a.today).slice(0,N);
+  const tPoor=rep.slice().sort((a,b)=>a.today-b.today||a.n.localeCompare(b.n)).slice(0,N),tBest=rep.slice().sort((a,b)=>b.today-a.today||a.n.localeCompare(b.n)).slice(0,N);
   const pPoor=pAll.slice().sort((a,b)=>a.s-b.s).slice(0,N),pBest=pAll.slice().sort((a,b)=>b.s-a.s).slice(0,N);
   const low=pAll.filter(x=>x.avg<D.avgMin).sort((a,b)=>a.avg-b.avg);
   const tAll=all.slice().sort((a,b)=>(b.today===null?-1:b.today)-(a.today===null?-1:a.today)||a.n.localeCompare(b.n));
   const cAll=pAll.slice().sort((a,b)=>b.s-a.s),iAll=all.filter(x=>x.ci>0).sort((a,b)=>b.si-a.si);
-  const mv=(x,m)=>m==='day'?{date:vDate,count:x.today===null?0:x.today,avg:f1(x.avg)}:{date:per,count:x.s,avg:f1(x.avg)};
+  const mv=(x,m)=>Object.assign(m==='day'?{date:vDate,count:x.today===null?0:x.today,avg:f1(x.avg)}:{date:per,count:x.s,avg:f1(x.avg)},{poorFN:x.pf,poorAll:x.pa,topFN:x.tf,topAll:x.ta});
   const stat=x=>`Today ${x.today===null?'-':x.today} · Avg ${f1(x.avg)}/day · Total ${x.s} (${x.c} days)`;
-  const it=(x,v,m,lw)=>({n:x.n,sub:x.gp,stat:stat(x),v,low:lw,c:ct(x.p,x.n,mv(x,m))});
+  const stat2=x=>`Poorest-10 list: ${x.pf} this fortnight · ${x.pa} since inception | Best-10 list: ${x.tf} · ${x.ta}`;
+  const it=(x,v,m,lw)=>({n:x.n,sub:x.gp,stat:stat(x),stat2:stat2(x),v,low:lw,c:ct(x.p,x.n,mv(x,m))});
   const reg=(id,title,sub,arr,inc)=>{EXP[id]={fname:id+'-'+vDate,title,sub,head:['#','Surveyor','GP','Today','Days','Avg/day','Total'].concat(pv?['Phone']:[]),
     rows:arr.map((x,i)=>[i+1,x.n,x.gp,x.today===null?'':x.today,inc?x.ci:x.c,+f1(inc?x.avgi:x.avg),inc?x.si:x.s].concat(pv?[x.p]:[]))}};
   const tb=(arr,cols,m)=>arr.length?`<div class="scroll"><table class="grid num"><tr><th>#</th><th>Surveyor</th>${cols.map(c=>`<th class="sc">${c[0]}</th>`).join('')}${on?'<th></th>':''}</tr>${arr.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.n)}<div class="mu">${esc(x.gp)}</div></td>${cols.map(c=>`<td class="sc">${c[1](x)}</td>`).join('')}${on?`<td>${ct(x.p,x.n,mv(x,m))}</td>`:''}</tr>`).join('')}</table></div>`:'<p class="mu" style="padding:8px 0">No data yet.</p>';
@@ -301,6 +322,11 @@ function dashView(){
   reg('avg-low','Daily average below '+D.avgMin,'Period '+per,low);
   reg('today-all','Today total report (all VST)','Date '+vDate,tAll);reg('period-all','Cumulative report from period start','Period '+per,cAll);
   reg('inception','Cumulative report since inception','Up to '+vDate,iAll,true);
+  const fq=all.filter(x=>x.pa||x.ta).sort((a,b)=>b.pf-a.pf||b.pa-a.pa||a.n.localeCompare(b.n));
+  const fqSub='This fortnight ('+fortLabel(vDate)+') and since inception, counted from the daily lists up to '+vDate;
+  EXP['freq']={fname:'poorest-best-times-'+vDate,title:'Times in poorest-10 / best-10 daily list',sub:fqSub,head:['#','Surveyor','GP','Poorest-10 (this fortnight)','Poorest-10 (since inception)','Best-10 (this fortnight)','Best-10 (since inception)'].concat(pv?['Phone']:[]),
+    rows:fq.map((x,i)=>[i+1,x.n,x.gp,x.pf,x.pa,x.tf,x.ta].concat(pv?[x.p]:[]))};
+  const freqSec=sec('all','🔁 Times in poorest-10 / best-10 list',fqSub,tb(fq,[['Poor (fortnight)',x=>x.pf],['Poor (inception)',x=>x.pa],['Best (fortnight)',x=>x.tf],['Best (inception)',x=>x.ta]],'per'),'freq');
   const tTot=rep.reduce((a,x)=>a+x.today,0),pTot=pAll.reduce((a,x)=>a+x.s,0),iTot=iAll.reduce((a,x)=>a+x.si,0);
   const dates=Object.values(reports).filter(r=>r.entries&&r.entries.length).map(r=>r.date).sort();
   // ----- special activity reports -----
@@ -335,6 +361,7 @@ function dashView(){
   ${sec('poor','⚠️ 10 poorest performers since '+from,'Total '+esc(D.label)+', '+per,lst(pPoor.map(x=>it(x,x.s,'per')),'poor'),'period-poor')}
   ${sec('best','🏆 10 best performers since '+from,'Total '+esc(D.label)+', '+per,lst(pBest.map(x=>it(x,x.s,'per')),'best'),'period-best')}
   ${sec('poor','📉 Daily average below '+D.avgMin+' ('+low.length+')','Average per day, '+per,lst(low.map(x=>it(x,+f1(x.avg),'per')),'poor'),'avg-low')}
+  ${freqSec}
   ${sec('all','📋 Today’s total report (all VST)',vDate+' · '+rep.length+' of '+all.length+' surveyors reported · total '+tTot+' surveys',tb(tAll,[['Today',x=>x.today===null?'-':x.today],['Avg',x=>f1(x.avg)],['Total',x=>x.s]],'day'),'today-all')}
   ${sec('all','📋 Cumulative report from period start',per+' · total '+pTot+' surveys',tb(cAll,[['Days',x=>x.c],['Avg',x=>f1(x.avg)],['Total',x=>x.s]],'per'),'period-all')}
   ${sec('all','📈 Cumulative report since inception',dates.length?'From '+dates[0]+' · '+iAll.length+' surveyors · '+iTot+' total surveys':'',tb(iAll,[['Days',x=>x.ci],['Avg',x=>f1(x.avgi)],['Total',x=>x.si]],'per'),'inception')}
