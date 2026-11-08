@@ -93,7 +93,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const iso=d=>d.toLocaleDateString('en-CA');
 const today=()=>iso(new Date());
 const addDays=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return iso(d)};
-const DEFMSG='Hello {name}, your survey count for {date} was {count} (average {avg} per day). Your name appeared in the poor performance list or the average below {limit} list {badFN} time(s) in this fortnight ({fn}). Please improve your daily survey work. - Block Nodal Officer';
+const DEFMSG='Hello {name}, your survey count for {date} was {count} (average {avg} per day). Your name appeared in the poor performance list {poorFN} time(s) and in the average below {limit} list {lowFN} time(s) in this fortnight ({fn}). Please improve your daily survey work. - Block Nodal Officer';
 const DEFGMSG='Dear all, please improve your daily survey work and upload your reports on time. - Krishnendu Mallick, Block Nodal Officer';
 const DEFSMSG='Hello {name}, the survey report for {date} has not been uploaded yet. Please upload it today. - Krishnendu Mallick, Block Nodal Officer';
 const SPA=[['pe','Perennial Spots','No of Perennial Spots Cleanliness Activity'],['mk','Market','No of Market Cleanliness Activity'],['sc','School','No of School Cleanliness Activity'],['ic','ICDS','No of ICDS Cleanliness Activity'],['hc','Health Centre','No of Health Centre Cleanliness Activity'],['go','Govt. Office','No of Government office Cleanliness Activity']];
@@ -101,7 +101,7 @@ const DEFSPMSG='Hello {name}, the special activity report for {date} has not bee
 const defDash=()=>({days:15,target:0,label:'Today survey count',avgMin:20,msg:DEFMSG,smsg:DEFSMSG,spmsg:DEFSPMSG});
 const fillMsg=(n,v,t)=>{const tpl=t||cfg.dash.msg||DEFMSG,z=x=>x===undefined?'':x;
   let m=tpl.replace(/\{name\}/g,n).replace(/\{date\}/g,z(v.date)).replace(/\{count\}/g,z(v.count)).replace(/\{avg\}/g,z(v.avg)).replace(/\{limit\}/g,z(v.limit)).replace(/\{fn\}/g,z(v.fn)).replace(/\{badFN\}/g,z(v.badFN)).replace(/\{badAll\}/g,z(v.badAll)).replace(/\{poorFN\}/g,z(v.poorFN)).replace(/\{poorAll\}/g,z(v.poorAll)).replace(/\{lowFN\}/g,z(v.lowFN)).replace(/\{lowAll\}/g,z(v.lowAll)).replace(/\{topFN\}/g,z(v.topFN)).replace(/\{topAll\}/g,z(v.topAll));
-  if(v.badFN!==undefined&&!/\{(badFN|badAll|poorFN|poorAll|lowFN|lowAll)\}/.test(tpl))m+=' Your name appeared in the poor performance list or the average below '+v.limit+' list '+v.badFN+' time(s) in this fortnight ('+v.fn+').';
+  if(v.badFN!==undefined&&!/\{(badFN|badAll|poorFN|poorAll|lowFN|lowAll)\}/.test(tpl))m+=' Your name appeared in the poor performance list '+v.poorFN+' time(s) and in the average below '+v.limit+' list '+v.lowFN+' time(s) in this fortnight ('+v.fn+').';
   return m};
 let editU=null,fmsg='',spOk='';
 let cfg={users:[],dash:defDash()},reports={},me=null,tab='',vDate=today(),msg='',umsg='',emsg='',rSup='',lp='',ready=false,dirty=false,unsubs=[],boot=false;
@@ -144,7 +144,7 @@ function draw(){
   a.innerHTML=`<div class="banner"><div><h1>VBDC MONITORING, RAMNAGAR-I</h1><div class="sub">${esc(me.name)} · ${ROLES[me.role]}</div></div><button id="out">Log out</button></div>
   <div class="tabs">${T.map(t=>`<button class="${tab===t[0]?'on':''}" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>
   ${tab==='entry'?entryView(sp,false):tab==='sp'?spView(sp,false,true):tab==='reports'?msgView()+entryView(sp,true)+spView(sp,true,false):tab==='dash'?dashView():tab==='users'?usersView():tab==='bulk'?bulkView():tab==='pw'?pwView():formatView()}
-  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 12 · bulk message</div>`;
+  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 13 · average-below fix</div>`;
   document.getElementById('out').onclick=()=>{Q=null;renderQ();signOut(auth)};
   a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;umsg='';emsg='';spOk='';draw()});
   if(tab==='entry'||tab==='reports')bindEntry(sp,tab==='reports');if(tab==='sp')bindSp(sp,false,true);if(tab==='reports'){bindMsg();bindSp(sp,true,false)}
@@ -172,7 +172,7 @@ function bindLogin(){
 
 // ---------- Messages (admin) ----------
 function msgView(){
-  return `<div class="card"><h2>Messages for WhatsApp / SMS</h2><p class="mu">Typed into WhatsApp or SMS when you tap 💬 or ✉️. You can use {name}, {date}, {count}, {avg}, {limit}, {fn}, {badFN} (times in the poor performance or below-limit list this fortnight), {poorFN} (poorest-10 list only), {lowFN} (below-limit list only); add All instead of FN for since inception. The app fills them in for each person.</p>
+  return `<div class="card"><h2>Messages for WhatsApp / SMS</h2><p class="mu">Typed into WhatsApp or SMS when you tap 💬 or ✉️. You can use {name}, {date}, {count}, {avg}, {limit}, {fn}, {poorFN} (times in the poorest-10 list this fortnight), {lowFN} (times in the average-below-limit list this fortnight), {badFN} (both added together); add All instead of FN for since inception. The app fills them in for each person.</p>
   <b>To surveyors</b><textarea id="mt" rows="4" class="full" style="margin:4px 0 10px">${esc(cfg.dash.msg||DEFMSG)}</textarea>
   <b>To supervisors whose report is not uploaded</b><textarea id="mt2" rows="3" class="full" style="margin:4px 0 10px">${esc(cfg.dash.smsg||DEFSMSG)}</textarea>
   <b>To supervisors whose special activity report is not uploaded</b><textarea id="mt3" rows="3" class="full" style="margin:4px 0 10px">${esc(cfg.dash.spmsg||DEFSPMSG)}</textarea>
@@ -288,22 +288,24 @@ function dashView(){
     if(r.date>=from&&r.date<=vDate){x.s+=v;x.c++}
     x.si+=v;x.ci++}));
   const all=Object.values(st),f1=x=>x.toFixed(1);
-  all.forEach(x=>{x.avg=x.c?x.s/x.c:0;x.avgi=x.ci?x.si/x.ci:0;x.pf=0;x.pa=0;x.tf=0;x.ta=0;x.lf=0;x.la=0;x.bf=0;x.ba=0});
-  {const fs=fortStart(vDate),byDate={};
+  all.forEach(x=>{x.avg=x.c?x.s/x.c:0;x.avgi=x.ci?x.si/x.ci:0;x.pf=0;x.pa=0;x.tf=0;x.ta=0;x.lf=0;x.la=0});
+  {const byDate={},acc={};
    Object.values(reports).forEach(r=>{if(r.date<=vDate)(r.entries||[]).forEach(e=>{if(st[e.p])(byDate[r.date]=byDate[r.date]||[]).push({x:st[e.p],v:val(e)})})});
-   Object.keys(byDate).forEach(d=>{const rows=byDate[d],cmp=(a,b)=>a.x.n.localeCompare(b.x.n),cur=d>=fs,poor=new Set();
-     rows.slice().sort((a,b)=>a.v-b.v||cmp(a,b)).slice(0,N).forEach(r=>{poor.add(r.x.p);r.x.pa++;if(cur)r.x.pf++});
+   const fs0=fortStart(vDate);
+   Object.keys(byDate).sort().forEach(d=>{const rows=byDate[d],fsd=fortStart(d),cmp=(a,b)=>a.x.n.localeCompare(b.x.n),cur=d>=fs0;
+     rows.forEach(r=>{let a=acc[r.x.p];if(!a||a.fs!==fsd)a=acc[r.x.p]={fs:fsd,s:0,c:0};a.s+=r.v;a.c++});
+     rows.slice().sort((a,b)=>a.v-b.v||cmp(a,b)).slice(0,N).forEach(r=>{r.x.pa++;if(cur)r.x.pf++});
      rows.slice().sort((a,b)=>b.v-a.v||cmp(a,b)).slice(0,N).forEach(r=>{r.x.ta++;if(cur)r.x.tf++});
-     rows.forEach(r=>{const lw=r.v<D.avgMin,bd=lw||poor.has(r.x.p);if(lw){r.x.la++;if(cur)r.x.lf++}if(bd){r.x.ba++;if(cur)r.x.bf++}})})}
+     Object.keys(acc).forEach(p=>{const a=acc[p];if(a.fs===fsd&&a.c>0&&a.s/a.c<D.avgMin){st[p].la++;if(cur)st[p].lf++}})})}
   const rep=all.filter(x=>x.today!==null),pAll=all.filter(x=>x.c>0);
   const tPoor=rep.slice().sort((a,b)=>a.today-b.today||a.n.localeCompare(b.n)).slice(0,N),tBest=rep.slice().sort((a,b)=>b.today-a.today||a.n.localeCompare(b.n)).slice(0,N);
   const pPoor=pAll.slice().sort((a,b)=>a.s-b.s).slice(0,N),pBest=pAll.slice().sort((a,b)=>b.s-a.s).slice(0,N);
   const low=pAll.filter(x=>x.avg<D.avgMin).sort((a,b)=>a.avg-b.avg);
   const tAll=all.slice().sort((a,b)=>(b.today===null?-1:b.today)-(a.today===null?-1:a.today)||a.n.localeCompare(b.n));
   const cAll=pAll.slice().sort((a,b)=>b.s-a.s),iAll=all.filter(x=>x.ci>0).sort((a,b)=>b.si-a.si);
-  const mv=(x,m)=>Object.assign(m==='day'?{date:vDate,count:x.today===null?0:x.today,avg:f1(x.avg)}:{date:per,count:x.s,avg:f1(x.avg)},{poorFN:x.pf,poorAll:x.pa,lowFN:x.lf,lowAll:x.la,badFN:x.bf,badAll:x.ba,topFN:x.tf,topAll:x.ta,limit:D.avgMin,fn:fortLabel(vDate)});
+  const mv=(x,m)=>Object.assign(m==='day'?{date:vDate,count:x.today===null?0:x.today,avg:f1(x.avg)}:{date:per,count:x.s,avg:f1(x.avg)},{poorFN:x.pf,poorAll:x.pa,lowFN:x.lf,lowAll:x.la,badFN:x.pf+x.lf,badAll:x.pa+x.la,topFN:x.tf,topAll:x.ta,limit:D.avgMin,fn:fortLabel(vDate)});
   const stat=x=>`Today ${x.today===null?'-':x.today} · Avg ${f1(x.avg)}/day · Total ${x.s} (${x.c} days)`;
-  const stat2=x=>adm?`Poorest-10 list: ${x.pf} this fortnight · ${x.pa} since inception | Below ${D.avgMin}: ${x.lf} · ${x.la}`:'';
+  const stat2=x=>adm?`Poorest-10 list: ${x.pf} this fortnight · ${x.pa} since inception | Avg below ${D.avgMin}: ${x.lf} · ${x.la}`:'';
   const it=(x,v,m,lw)=>({n:x.n,sub:x.gp,stat:stat(x),stat2:stat2(x),v,low:lw,c:ct(x.p,x.n,mv(x,m))});
   const reg=(id,title,sub,arr,inc)=>{EXP[id]={fname:id+'-'+vDate,title,sub,head:['#','Surveyor','GP','Today','Days','Avg/day','Total'].concat(pv?['Phone']:[]),
     rows:arr.map((x,i)=>[i+1,x.n,x.gp,x.today===null?'':x.today,inc?x.ci:x.c,+f1(inc?x.avgi:x.avg),inc?x.si:x.s].concat(pv?[x.p]:[]))}};
@@ -324,12 +326,12 @@ function dashView(){
   reg('avg-low','Daily average below '+D.avgMin,'Period '+per,low);
   reg('today-all','Today total report (all VST)','Date '+vDate,tAll);reg('period-all','Cumulative report from period start','Period '+per,cAll);
   reg('inception','Cumulative report since inception','Up to '+vDate,iAll,true);
-  const fq=all.filter(x=>x.pa||x.ta||x.la||x.ba).sort((a,b)=>b.bf-a.bf||b.pf-a.pf||b.ba-a.ba||a.n.localeCompare(b.n));
-  const fqSub='This fortnight ('+fortLabel(vDate)+') and since inception, counted day by day up to '+vDate+'. Below '+D.avgMin+' = days with a daily count under '+D.avgMin;
-  const fqCols=[['Poorest-10 (fortnight)',x=>x.pf],['Poorest-10 (inception)',x=>x.pa],['Below '+D.avgMin+' (fortnight)',x=>x.lf],['Below '+D.avgMin+' (inception)',x=>x.la],['Either list (fortnight)',x=>x.bf],['Either list (inception)',x=>x.ba],['Best-10 (fortnight)',x=>x.tf],['Best-10 (inception)',x=>x.ta]];
-  if(adm)EXP['freq']={fname:'times-in-lists-'+vDate,title:'Times in poorest-10 / below '+D.avgMin+' / best-10 lists',sub:fqSub,head:['#','Surveyor','GP'].concat(fqCols.map(c=>c[0]),pv?['Phone']:[]),
+  const fq=all.filter(x=>x.pa||x.ta||x.la).sort((a,b)=>(b.pf+b.lf)-(a.pf+a.lf)||(b.pa+b.la)-(a.pa+a.la)||a.n.localeCompare(b.n));
+  const fqSub='This fortnight ('+fortLabel(vDate)+') and since inception, counted day by day up to '+vDate+'. Average below '+D.avgMin+' = days on which the surveyor’s fortnight-to-date average was under '+D.avgMin;
+  const fqCols=[['Poorest-10 (fortnight)',x=>x.pf],['Poorest-10 (inception)',x=>x.pa],['Avg below '+D.avgMin+' (fortnight)',x=>x.lf],['Avg below '+D.avgMin+' (inception)',x=>x.la],['Best-10 (fortnight)',x=>x.tf],['Best-10 (inception)',x=>x.ta]];
+  if(adm)EXP['freq']={fname:'times-in-lists-'+vDate,title:'Times in poorest-10 / average below '+D.avgMin+' / best-10 lists',sub:fqSub,head:['#','Surveyor','GP'].concat(fqCols.map(c=>c[0]),pv?['Phone']:[]),
     rows:fq.map((x,i)=>[i+1,x.n,x.gp].concat(fqCols.map(c=>c[1](x)),pv?[x.p]:[]))};
-  const freqSec=adm?sec('all','🔁 Times in poorest-10 / below '+D.avgMin+' / best-10 lists',fqSub,tb(fq,fqCols,'per','xwide'),'freq'):'';
+  const freqSec=adm?sec('all','🔁 Times in poorest-10 / average below '+D.avgMin+' / best-10 lists',fqSub,tb(fq,fqCols,'per','xwide'),'freq'):'';
   const tTot=rep.reduce((a,x)=>a+x.today,0),pTot=pAll.reduce((a,x)=>a+x.s,0),iTot=iAll.reduce((a,x)=>a+x.si,0);
   const dates=Object.values(reports).filter(r=>r.entries&&r.entries.length).map(r=>r.date).sort();
   // ----- special activity reports -----
