@@ -75,6 +75,14 @@ table.grid.tot tr:last-child td{font-weight:800;background:rgba(255,176,102,.2)}
 .qbox{background:var(--card);color:var(--tx);width:100%;max-width:760px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
 .qlist{max-height:40vh;overflow:auto;margin:6px 0 10px}
 table.grid.xwide{min-width:980px}table.grid.xwide th{min-width:84px}
+.kg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 4px}
+.kt{background:var(--bg);border:1px solid var(--ln);border-radius:14px;padding:10px 12px}
+.kt .l{font-size:12px;color:var(--mu)}.kt .n{font-size:24px;font-weight:800;line-height:1.15;margin-top:2px}.kt .s{font-size:11.5px;color:var(--mu);margin-top:2px}
+.kt.bad{background:rgba(211,47,47,.08)}.kt.bad .n{color:var(--bad)}
+.ch{border:1px solid var(--ln);border-radius:14px;padding:10px 12px;margin-top:10px}
+.ch h4{margin:0 0 6px;font-size:13.5px}
+.dn{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.lg{flex:1;min-width:150px;font-size:12.5px}.lg div{display:flex;align-items:center;gap:7px;margin:3px 0}.lg i{width:11px;height:11px;border-radius:3px;display:block;flex:0 0 11px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -144,7 +152,7 @@ function draw(){
   a.innerHTML=`<div class="banner"><div><h1>VBDC MONITORING, RAMNAGAR-I</h1><div class="sub">${esc(me.name)} · ${ROLES[me.role]}</div></div><button id="out">Log out</button></div>
   <div class="tabs">${T.map(t=>`<button class="${tab===t[0]?'on':''}" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>
   ${tab==='entry'?entryView(sp,false):tab==='sp'?spView(sp,false,true):tab==='reports'?msgView()+entryView(sp,true)+spView(sp,true,false):tab==='dash'?dashView():tab==='users'?usersView():tab==='bulk'?bulkView():tab==='pw'?pwView():formatView()}
-  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 13 · average-below fix</div>`;
+  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 14 · overview + grid PDF</div>`;
   document.getElementById('out').onclick=()=>{Q=null;renderQ();signOut(auth)};
   a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;umsg='';emsg='';spOk='';draw()});
   if(tab==='entry'||tab==='reports')bindEntry(sp,tab==='reports');if(tab==='sp')bindSp(sp,false,true);if(tab==='reports'){bindMsg();bindSp(sp,true,false)}
@@ -273,20 +281,27 @@ const sec=(k,title,sub,body,id)=>{const h=hid.has(id);
 function dl(id,f){
   const e=EXP[id];if(!e||!canC())return;
   if(f==='xlsx'){if(typeof XLSX==='undefined')return alert('Excel library could not load.');
-    const ws=XLSX.utils.aoa_to_sheet([[e.title],[e.sub],[],e.head,...e.rows]),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Report');XLSX.writeFile(wb,e.fname+'.xlsx')}
+    const ws=XLSX.utils.aoa_to_sheet([[e.title],[e.sub],[],e.head,...e.rows]),wb=XLSX.utils.book_new();ws['!cols']=e.head.map((h,c)=>({wch:Math.min(34,Math.max(String(h).length,...e.rows.map(r=>String(r[c]===undefined?'':r[c]).length))+2)}));XLSX.utils.book_append_sheet(wb,ws,'Report');XLSX.writeFile(wb,e.fname+'.xlsx')}
   else{if(!window.jspdf)return alert('PDF library could not load.');
-    const d=new window.jspdf.jsPDF({unit:'pt',format:'a4'});d.setFontSize(13);d.text(e.title,40,40);d.setFontSize(9);d.text(e.sub,40,56);
-    d.autoTable({head:[e.head],body:e.rows,startY:70,styles:{fontSize:8},headStyles:{fillColor:[232,121,26]}});d.save(e.fname+'.pdf')}
+    const wide=e.head.length>7,d=new window.jspdf.jsPDF({unit:'pt',format:'a4',orientation:wide?'landscape':'portrait'}),PW=d.internal.pageSize.getWidth();
+    d.setFontSize(13);d.text(e.title,30,36);d.setFontSize(9);const sl=d.splitTextToSize(e.sub,PW-60);d.text(sl,30,52);
+    d.autoTable({head:[e.head],body:e.rows,startY:52+sl.length*11+8,theme:'grid',margin:{left:30,right:30,top:40,bottom:36},
+      styles:{fontSize:8,cellPadding:3.5,lineColor:[110,110,110],lineWidth:0.5,textColor:[30,30,30],valign:'middle',overflow:'linebreak'},
+      headStyles:{fillColor:[247,176,104],textColor:[40,22,0],fontStyle:'bold',halign:'center'},
+      didParseCell:h=>{if(h.section==='body'){h.cell.styles.halign=/^-?[\d.]+$/.test(String(h.cell.raw))?'center':'left';
+        if(e.tot&&h.row.index===e.rows.length-1){h.cell.styles.fontStyle='bold';h.cell.styles.fillColor=[255,241,226]}}},
+      didDrawPage:h=>{d.setFontSize(8);d.text('Page '+d.internal.getNumberOfPages(),PW-30,d.internal.pageSize.getHeight()-16,{align:'right'})}});
+    d.save(e.fname+'.pdf')}
 }
 function dashView(){
   const D=cfg.dash,adm=me.role==='block',pv=canC(),on=pv&&contactOn,N=10,from=D.from||addDays(today(),-14),per=from+' to '+vDate;
   Object.keys(EXP).forEach(k=>delete EXP[k]);Object.keys(QD).forEach(k=>delete QD[k]);
-  const st={};
+  const FS=fortStart(vDate),st={};
   cfg.users.filter(u=>u.role==='sur').forEach(u=>{const s=cfg.users.find(x=>x.phone===u.sup);st[u.phone]={p:u.phone,n:u.name,gp:s?gpName(s):'-',today:null,s:0,c:0,si:0,ci:0}});
   Object.values(reports).forEach(r=>(r.entries||[]).forEach(e=>{const x=st[e.p];if(!x)return;const v=val(e);
     if(r.date===vDate)x.today=v;
     if(r.date>=from&&r.date<=vDate){x.s+=v;x.c++}
-    x.si+=v;x.ci++}));
+    x.si+=v;x.ci++;if(r.date>=FS&&r.date<=vDate){x.fs=(x.fs||0)+v;x.fc=(x.fc||0)+1}}));
   const all=Object.values(st),f1=x=>x.toFixed(1);
   all.forEach(x=>{x.avg=x.c?x.s/x.c:0;x.avgi=x.ci?x.si/x.ci:0;x.pf=0;x.pa=0;x.tf=0;x.ta=0;x.lf=0;x.la=0});
   {const byDate={},acc={};
@@ -343,7 +358,7 @@ function dashView(){
   const spTbl=(rows,id,title,sub,blank)=>{
     const tot={};SPA.forEach(x=>tot[x[0]]=rows.reduce((s,r)=>s+r.v[x[0]],0));const gt=rows.reduce((s,r)=>s+r.t,0);
     const cell=(r,k)=>blank&&!r.any?'':r.v[k],tc=r=>blank&&!r.any?'':r.t;
-    EXP[id]={fname:id+'-'+vDate,title,sub,head:['Sl','Gram Panchayat',...SPA.map(x=>x[1]),'Total'],rows:rows.map((r,i)=>[i+1,gpName(r.u),...SPA.map(x=>cell(r,x[0])),tc(r)]).concat([['','TOTAL',...SPA.map(x=>tot[x[0]]),gt]])};
+    EXP[id]={tot:true,fname:id+'-'+vDate,title,sub,head:['Sl','Gram Panchayat',...SPA.map(x=>x[1]),'Total'],rows:rows.map((r,i)=>[i+1,gpName(r.u),...SPA.map(x=>cell(r,x[0])),tc(r)]).concat([['','TOTAL',...SPA.map(x=>tot[x[0]]),gt]])};
     return rows.length?`<div class="mu" style="font-size:12px;padding:4px 0">Swipe sideways to see all columns</div><div class="scroll"><table class="grid wide num tot"><tr><th>Sl</th><th>Gram Panchayat</th>${SPA.map(x=>`<th class="sc">${x[1]}</th>`).join('')}<th class="sc">Total</th></tr>${rows.map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(gpName(r.u))}</b></td>${SPA.map(x=>`<td class="sc">${cell(r,x[0])}</td>`).join('')}<td class="sc">${tc(r)}</td></tr>`).join('')}<tr><td></td><td><b>TOTAL</b></td>${SPA.map(x=>`<td class="sc">${tot[x[0]]}</td>`).join('')}<td class="sc">${gt}</td></tr></table></div>`:'<p class="mu" style="padding:8px 0">No supervisors yet.</p>'};
   const spv=SPN.map(u=>({u,ok:!!(reports[vDate+'_'+u.phone]&&reports[vDate+'_'+u.phone].sp)})).sort((a,b)=>a.ok-b.ok||gpName(a.u).localeCompare(gpName(b.u)));
   const spy=spv.filter(x=>x.ok).length,spthanks='Hello {name}, thank you for uploading the special activity report for {date}.';
@@ -356,8 +371,35 @@ function dashView(){
    +`<div class="card datebar"><div><b>Special activity: start date</b><div class="mu">${adm?'Choose the date to measure from':'Set by the Block Nodal Officer'}</div></div>${adm?`<input type="date" id="sf" value="${spFrom}" max="${vDate}">`:`<b>${dmy(spFrom)}</b>`}</div>`
    +sec('all','🧹 Cumulative special activity report from '+dmy(spFrom),dmy(spFrom)+' to '+dmy(vDate),spTbl(spSum(spFrom,vDate),'sp-period','Cumulative special activity report from '+dmy(spFrom),dmy(spFrom)+' to '+dmy(vDate),false),'sp-period')
    +sec('all','🧹 Cumulative special activity report since inception',spDates.length?'From '+dmy(spDates[0])+' to '+dmy(vDate):'',spTbl(spSum('0000-01-01',vDate),'sp-inc','Cumulative special activity report since inception','Up to '+dmy(vDate),false),'sp-inc');
+  // ----- overview with charts -----
+  const ovDays=[];for(let d=FS;d<=vDate;d=addDays(d,1))ovDays.push(d);
+  const dTot=ovDays.map(()=>0),dSp=ovDays.map(()=>0),spType={};SPA.forEach(a=>spType[a[0]]=0);
+  Object.values(reports).forEach(r=>{const i=ovDays.indexOf(r.date);if(i<0)return;
+    (r.entries||[]).forEach(e=>{if(st[e.p])dTot[i]+=val(e)});
+    if(r.sp&&cfg.users.find(u=>u.phone===r.sup&&u.role==='bst'))SPA.forEach(a=>{const n=+r.sp[a[0]]||0;dSp[i]+=n;spType[a[0]]+=n})});
+  const last=ovDays.length-1,ovToday=dTot[last],ovFort=dTot.reduce((a,b)=>a+b,0),spToday=dSp[last],spFort=dSp.reduce((a,b)=>a+b,0);
+  const fW=all.filter(x=>x.fc>0),fLow=fW.filter(x=>x.fs/x.fc<D.avgMin).length,fOk=fW.length-fLow;
+  const pct=(a,b)=>b?Math.round(a*100/b)+'%':'0%';
+  const barSvg=(vals,color,lab)=>{const W=340,H=150,pl=6,pb=20,pt=14,n=vals.length,mx=Math.max(1,...vals),bw=(W-pl*2)/n;
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${lab}" style="color:var(--tx)">${vals.map((v,i)=>{const h=(H-pb-pt)*v/mx,w=bw*0.7,x=pl+i*bw+bw*0.15,y=H-pb-h;return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(h,v?1:0).toFixed(1)}" rx="3" fill="${color}"/><text x="${(x+w/2).toFixed(1)}" y="${(y-3).toFixed(1)}" font-size="${n>12?7:8}" text-anchor="middle" fill="currentColor">${v||''}</text><text x="${(x+w/2).toFixed(1)}" y="${H-7}" font-size="8" text-anchor="middle" fill="currentColor">${ovDays[i].slice(8)}</text>`}).join('')}<line x1="${pl}" y1="${H-pb}" x2="${W-pl}" y2="${H-pb}" stroke="currentColor" stroke-opacity=".3"/></svg>`};
+  const donut=(parts,total,lab)=>{const R=44,C=2*Math.PI*R;let off=0;
+    return `<svg viewBox="0 0 120 120" width="124" height="124" role="img" aria-label="${lab}" style="color:var(--tx);flex:0 0 124px"><circle cx="60" cy="60" r="${R}" fill="none" stroke="currentColor" stroke-opacity=".12" stroke-width="18"/>${parts.map(p=>{const len=total?C*p.v/total:0,el=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="${p.c}" stroke-width="18" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 60 60)"/>`;off+=len;return el}).join('')}<text x="60" y="61" font-size="19" font-weight="700" text-anchor="middle" fill="currentColor">${total}</text><text x="60" y="75" font-size="8" text-anchor="middle" fill="currentColor" fill-opacity=".7">${lab}</text></svg>`};
+  const legend=(parts,total)=>`<div class="lg">${parts.map(p=>`<div><i style="background:${p.c}"></i><span>${esc(p.l)}: <b>${p.v}</b> (${pct(p.v,total)})</span></div>`).join('')}</div>`;
+  const avgParts=[{l:'Average below '+D.avgMin,v:fLow,c:'#D32F2F'},{l:'Average '+D.avgMin+' or more',v:fOk,c:'#2E9E5B'}];
+  const COL=['#F08A24','#2E9E5B','#3B82D6','#8E5BD9','#D32F2F','#C9A227'];
+  const spParts=SPA.map((a,i)=>({l:a[1],v:spType[a[0]],c:COL[i]}));
+  const kt=(l,n,sub,cls)=>`<div class="kt ${cls||''}"><div class="l">${l}</div><div class="n">${n}</div><div class="s">${sub}</div></div>`;
+  EXP['overview']={fname:'overview-'+vDate,title:'Overview',sub:'Date '+vDate+' · fortnight '+fortLabel(vDate)+' (cumulative up to the report date)',head:['Item','Surveys','Special activity'],
+    rows:[['Today ('+vDate+')',ovToday,spToday],['This fortnight, cumulative ('+fortLabel(vDate)+')',ovFort,spFort],['Surveyors with fortnight average below '+D.avgMin,fLow+' of '+fW.length,'']].concat(ovDays.map((d,i)=>['Day '+d,dTot[i],dSp[i]]))};
+  const ovBody=kt0=>`<div class="kg">${kt('Today’s total surveys',ovToday,rep.length+' of '+all.length+' surveyors reported')}${kt('Surveys this fortnight (cumulative)',ovFort,fortLabel(vDate))}${kt('Surveyors with average below '+D.avgMin,fLow,'of '+fW.length+' with data this fortnight','bad')}${kt('Special activity today',spToday,spy+' of '+spv.length+' GPs reported')}${kt('Special activity this fortnight (cumulative)',spFort,fortLabel(vDate))}${kt('Survey reports uploaded today',yes+' / '+sv.length,'supervisors')}</div>
+   <div class="ch"><h4>Daily total surveys, this fortnight</h4>${barSvg(dTot,'#F08A24','Daily total surveys')}</div>
+   <div class="ch"><h4>Surveyors: fortnight average against ${D.avgMin}</h4><div class="dn">${donut(avgParts,fW.length,'surveyors')}${legend(avgParts,fW.length)}</div></div>
+   <div class="ch"><h4>Special activity this fortnight, by type</h4><div class="dn">${donut(spParts,spFort,'activities')}${legend(spParts,spFort)}</div></div>
+   <div class="ch"><h4>Daily total special activity, this fortnight</h4>${barSvg(dSp,'#3B82D6','Daily special activity')}</div>`;
+  const ovSec=sec('all','📊 Overview',dmy(vDate)+' · fortnight '+fortLabel(vDate),ovBody(),'overview');
   return `${pv?`<div class="card datebar"><div><b>Call / WhatsApp / SMS</b><div class="mu">${on?'📞 💬 ✉️ shown beside every name':'Hidden. Switch ON to show beside every name'}</div></div><button id="ctb" class="tg ${on?'':'g'}">${on?'ON':'OFF'}</button></div>`:''}
   <div class="card datebar"><div><b>Report date</b><div class="mu">Dashboard shows data up to this day</div></div><input type="date" id="dt" value="${vDate}" max="${today()}"></div>
+  ${ovSec}
   ${sec('all','📨 Today’s report uploaded?',vDate+' · '+yes+' YES · '+(sv.length-yes)+' NO',svBody,'sup-status')}
   ${spStatus}
   ${sec('poor','⚠️ Today’s 10 poorest performers',vDate,lst(tPoor.map(x=>it(x,x.today,'day',D.target>0&&x.today<D.target)),'poor'),'today-poor')}
