@@ -90,6 +90,8 @@ table.grid.xwide{min-width:980px}table.grid.xwide th{min-width:84px}
 .sf{width:100%;font-size:15px;padding:12px}
 .pli{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--ln);font-size:13px}
 mark{background:rgba(240,138,36,.35);color:inherit;border-radius:3px;padding:0 1px}
+.mmb a{display:inline-grid;place-items:center;width:44px;height:44px;font-size:20px;margin:0}
+.dd{border:1px solid var(--ln);border-radius:12px;padding:10px 12px;background:var(--bg)}.dd summary{font-weight:700;cursor:pointer;min-height:32px;display:flex;align-items:center}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -112,7 +114,11 @@ const DEFMSG='Hello {name}, your survey count for {date} was {count} (average {a
 const DEFGMSG='Dear all, please improve your daily survey work and upload your reports on time. - Krishnendu Mallick, Block Nodal Officer';
 const DEFSMSG='Hello {name}, the survey report for {date} has not been uploaded yet. Please upload it today. - Krishnendu Mallick, Block Nodal Officer';
 const SPA=[['pe','Perennial Spots','No of Perennial Spots Cleanliness Activity'],['mk','Market','No of Market Cleanliness Activity'],['sc','School','No of School Cleanliness Activity'],['ic','ICDS','No of ICDS Cleanliness Activity'],['hc','Health Centre','No of Health Centre Cleanliness Activity'],['go','Govt. Office','No of Government office Cleanliness Activity']];
+const BACKMSG='Supervisors can enter only today’s and yesterday’s report. For an older date, ask the Block Nodal Officer.';
 const DEFSPMSG='Hello {name}, the special activity report for {date} has not been uploaded yet. Please upload it today. - Krishnendu Mallick, Block Nodal Officer';
+const DPARAMS=[['overview','Overview with charts'],['search','Find a surveyor (search)'],['sup-status','Today’s survey report uploaded? (YES/NO)'],['sp-status','Special activity report updated? (YES/NO)'],['today-poor','Today’s 10 poorest performers'],['today-best','Today’s 10 best performers'],['period-poor','10 poorest since the period start date'],['period-best','10 best since the period start date'],['avg-low','Daily average below the limit'],['freq','Times in poorest-10 / below limit / best-10 lists (Nodal Officer only)'],['today-all','Today’s total report (all VST)'],['period-all','Cumulative report from the period start date'],['inception','Cumulative report since inception'],['sp-daily','Daily special activity report'],['sp-period','Cumulative special activity from a chosen date'],['sp-inc','Cumulative special activity since inception']];
+const DEFSHOW=['overview','search','sup-status'];
+const DEFMMSG='Hello {name}, this is a message from the Block Nodal Officer office. - Krishnendu Mallick, Block Nodal Officer';
 const defDash=()=>({days:15,target:0,label:'Today survey count',avgMin:20,msg:DEFMSG,smsg:DEFSMSG,spmsg:DEFSPMSG});
 const fillMsg=(n,v,t)=>{const tpl=t||cfg.dash.msg||DEFMSG,z=x=>x===undefined?'':x;
   let m=tpl.replace(/\{name\}/g,n).replace(/\{date\}/g,z(v.date)).replace(/\{count\}/g,z(v.count)).replace(/\{avg\}/g,z(v.avg)).replace(/\{limit\}/g,z(v.limit)).replace(/\{fn\}/g,z(v.fn)).replace(/\{badFN\}/g,z(v.badFN)).replace(/\{badAll\}/g,z(v.badAll)).replace(/\{poorFN\}/g,z(v.poorFN)).replace(/\{poorAll\}/g,z(v.poorAll)).replace(/\{lowFN\}/g,z(v.lowFN)).replace(/\{lowAll\}/g,z(v.lowAll)).replace(/\{topFN\}/g,z(v.topFN)).replace(/\{topAll\}/g,z(v.topAll));
@@ -152,19 +158,19 @@ function draw(){
   const a=document.getElementById('app');
   if(!ready){a.innerHTML='<div class="login"><div class="logo">📊</div><p class="mu">Loading…</p></div>';return}
   if(!me){dirty=false;a.innerHTML=loginView();bindLogin();return}
-  const T={bst:[['entry','Daily entry'],['sp','Special activity'],['dash','Dashboard']],gp:[['dash','Dashboard']],dealing:[['dash','Dashboard'],['bulk','Bulk message']],
-    block:[['dash','Dashboard'],['bulk','Bulk message'],['users','Users'],['reports','Reports'],['format','Format']]}[me.role].concat([['pw','Password']]);
+  const T={bst:[['entry','Daily entry'],['sp','Special activity'],['dash','Dashboard']],gp:[['dash','Dashboard']],dealing:[['dash','Dashboard'],['bulk','Message manager']],
+    block:[['dash','Dashboard'],['bulk','Message manager'],['users','Users'],['reports','Reports']]}[me.role].concat([['pw','Password']]);
   if(!tab||!T.find(t=>t[0]===tab))tab=T[0][0];
   const sp=tab==='reports'?(rSup||(sups()[0]||{}).phone):me.phone;
   a.innerHTML=`<div class="banner"><div><h1>VBDC MONITORING, RAMNAGAR-I</h1><div class="sub">${esc(me.name)} · ${ROLES[me.role]}</div></div><button id="out">Log out</button></div>
   <div class="tabs">${T.map(t=>`<button class="${tab===t[0]?'on':''}" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>
-  ${tab==='entry'?entryView(sp,false):tab==='sp'?spView(sp,false,true):tab==='reports'?msgView()+entryView(sp,true)+spView(sp,true,false):tab==='dash'?dashView():tab==='users'?usersView():tab==='bulk'?bulkView():tab==='pw'?pwView():formatView()}
-  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 16 · missing reports</div>`;
+  ${tab==='entry'?entryView(sp,false):tab==='sp'?spView(sp,false,true):tab==='reports'?reportsView(sp):tab==='dash'?dashView():tab==='users'?usersView():tab==='bulk'?msgManagerView():tab==='pw'?pwView():formatView()}
+  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 17 · message manager</div>`;
   document.getElementById('out').onclick=()=>{Q=null;srch.open=null;renderQ();signOut(auth)};
-  a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;umsg='';emsg='';spOk='';draw()});
-  if(tab==='entry'||tab==='reports')bindEntry(sp,tab==='reports');if(tab==='sp')bindSp(sp,false,true);if(tab==='reports'){bindMsg();bindSp(sp,true,false)}
+  a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;if(me.role==='bst'&&(tab==='entry'||tab==='sp')&&vDate<addDays(today(),-1))vDate=today();umsg='';emsg='';spOk='';draw()});
+  if(tab==='entry')bindEntry(sp,false);if(tab==='sp')bindSp(sp,false,true);if(tab==='reports'){a.querySelectorAll('[data-rs]').forEach(b=>b.onclick=()=>{repSub=b.dataset.rs;draw()});if(repSub==='entries'){bindEntry(sp,true);bindSp(sp,true,false)}else bindParams()}
   if(tab==='dash'){document.getElementById('dt').onchange=e=>{vDate=e.target.value||today();draw()};const f=document.getElementById('fr');if(f)f.onchange=e=>{cfg.dash.from=e.target.value;saveCfg();draw()};const sfi=document.getElementById('sf');if(sfi)sfi.onchange=e=>{cfg.dash.spFrom=e.target.value;saveCfg();draw()};const cb=document.getElementById('ctb');if(cb)cb.onclick=()=>{contactOn=!contactOn;try{localStorage.setItem('contactOn',contactOn?'1':'0')}catch(e){}draw()};a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>dl(b.dataset.x,b.dataset.f));a.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{const i=b.dataset.h;hid.has(i)?hid.delete(i):hid.add(i);try{localStorage.setItem('hid',JSON.stringify([...hid]))}catch(e){}draw()});a.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const d=QD[b.dataset.q];if(!d)return;Q={title:d.title,ch:'wa',group:cfg.dash.gmsg||DEFGMSG,items:d.items.map(x=>({...x,done:false}))};renderQ()});if(document.getElementById('sq'))bindSearch();const sbk=document.getElementById('sback');if(sbk)sbk.onclick=()=>{srch.open=null;draw();const el=document.getElementById('srch');if(el)el.scrollIntoView()};a.querySelectorAll('[data-miss]').forEach(b=>b.onclick=()=>{const k=b.dataset.miss;ovMiss[k]=!ovMiss[k];draw()})}
-  if(tab==='bulk')bindBulk();if(tab==='users')bindUsers();if(tab==='format')bindFormat();if(tab==='pw')bindPw();
+  if(tab==='bulk')bindMsgMgr();if(tab==='users')bindUsers();if(tab==='format')bindFormat();if(tab==='pw')bindPw();
   dirty=false;a.oninput=()=>{dirty=true};
 }
 
@@ -185,18 +191,19 @@ function bindLogin(){
   g('go').onclick=go;g('pw').onkeydown=e=>{if(e.key==='Enter')go()};
 }
 
-// ---------- Messages (admin) ----------
+// ---------- Default messages (Block Nodal Officer) ----------
 function msgView(){
-  return `<div class="card"><h2>Messages for WhatsApp / SMS</h2><p class="mu">Typed into WhatsApp or SMS when you tap 💬 or ✉️. You can use {name}, {date}, {count}, {avg}, {limit}, {fn}, {poorFN} (times in the poorest-10 list this fortnight), {lowFN} (times in the average-below-limit list this fortnight), {badFN} (both added together); add All instead of FN for since inception. The app fills them in for each person.</p>
-  <b>To surveyors</b><textarea id="mt" rows="4" class="full" style="margin:4px 0 10px">${esc(cfg.dash.msg||DEFMSG)}</textarea>
-  <b>To supervisors whose report is not uploaded</b><textarea id="mt2" rows="3" class="full" style="margin:4px 0 10px">${esc(cfg.dash.smsg||DEFSMSG)}</textarea>
-  <b>To supervisors whose special activity report is not uploaded</b><textarea id="mt3" rows="3" class="full" style="margin:4px 0 10px">${esc(cfg.dash.spmsg||DEFSPMSG)}</textarea>
+  return `<div class="card"><h2>Default messages</h2><p class="mu">Used when you tap 💬 or ✉️. You can use {name}, {date}, {count}, {avg}, {limit}, {fn}, {poorFN}, {lowFN} and {badFN}; write All instead of FN for since inception. The app fills them in for each person.</p>
+  <b>To surveyors (performance)</b><textarea id="mt" rows="4" class="full" style="margin:4px 0 10px">${esc(cfg.dash.msg||DEFMSG)}</textarea>
+  <b>To supervisors: survey report not uploaded</b><textarea id="mt2" rows="3" class="full" style="margin:4px 0 10px">${esc(cfg.dash.smsg||DEFSMSG)}</textarea>
+  <b>To supervisors: special activity not uploaded</b><textarea id="mt3" rows="3" class="full" style="margin:4px 0 10px">${esc(cfg.dash.spmsg||DEFSPMSG)}</textarea>
+  <b>General message (used in Message manager)</b><textarea id="mt4" rows="3" class="full" style="margin:4px 0 10px">${esc(cfg.dash.mmsg||DEFMMSG)}</textarea>
   <div class="row"><button id="ms" class="full">Save messages</button><button id="mr" class="g full">Use default messages</button></div><p id="mo" class="ok"></p></div>`;
 }
 function bindMsg(){
-  const g=id=>document.getElementById(id);
-  g('ms').onclick=()=>{cfg.dash.msg=g('mt').value.trim()||DEFMSG;cfg.dash.smsg=g('mt2').value.trim()||DEFSMSG;cfg.dash.spmsg=g('mt3').value.trim()||DEFSPMSG;saveCfg();g('mo').textContent='Saved ✓'};
-  g('mr').onclick=()=>{cfg.dash.msg=DEFMSG;cfg.dash.smsg=DEFSMSG;cfg.dash.spmsg=DEFSPMSG;saveCfg();g('mt').value=DEFMSG;g('mt2').value=DEFSMSG;g('mt3').value=DEFSPMSG;g('mo').textContent='Default messages restored ✓'};
+  const g=id=>document.getElementById(id),sync=()=>{mm.msg=null;const t=g('mmm');if(t)t.value=cfg.dash.mmsg||DEFMMSG;const r=g('mmrows');if(r)r.innerHTML=mmRows()};
+  g('ms').onclick=()=>{cfg.dash.msg=g('mt').value.trim()||DEFMSG;cfg.dash.smsg=g('mt2').value.trim()||DEFSMSG;cfg.dash.spmsg=g('mt3').value.trim()||DEFSPMSG;cfg.dash.mmsg=g('mt4').value.trim()||DEFMMSG;saveCfg();sync();g('mo').textContent='Saved ✓'};
+  g('mr').onclick=()=>{cfg.dash.msg=DEFMSG;cfg.dash.smsg=DEFSMSG;cfg.dash.spmsg=DEFSPMSG;cfg.dash.mmsg=DEFMMSG;saveCfg();g('mt').value=DEFMSG;g('mt2').value=DEFSMSG;g('mt3').value=DEFSPMSG;g('mt4').value=DEFMMSG;sync();g('mo').textContent='Default messages restored ✓'};
 }
 
 // ---------- Password ----------
@@ -222,7 +229,7 @@ function entryView(sp,adm){
   if(!sp)return '<div class="card">No supervisors found. Upload users first (Users tab).</div>';
   const sv=sups(),rid=vDate+'_'+sp,rep=reports[rid],tm=team(sp),D=cfg.dash;
   const get=p=>(rep&&(rep.entries||[]).find(e=>e.p===p))||{};
-  return `<div class="card"><div class="row sp"><h2>${adm?'Report database':'Daily report'}</h2><input type="date" id="dt" value="${vDate}" max="${today()}"></div>
+  return `<div class="card"><div class="row sp"><h2>${adm?'Report database':'Daily report'}</h2><input type="date" id="dt" value="${vDate}" max="${today()}" ${me.role==='bst'?`min="${addDays(today(),-1)}"`:''}></div>
   ${adm?`<select id="ss" class="full" style="margin-bottom:8px">${sv.map(s=>`<option value="${s.phone}" ${s.phone===sp?'selected':''}>${esc(gpName(s))} (${esc(s.name)})</option>`).join('')}</select>`:''}
   <p class="mu">${rep&&rep.entries?'Saved earlier. You can edit and save again.':'Not yet submitted for this date.'}</p>
   ${tm.length?`<div class="scroll"><table class="grid"><tr><th class="l">Surveyor</th><th>${esc(D.label)}</th><th>Cumulative report for this fortnight<div class="mu" style="text-transform:none;font-weight:400">(${fortLabel(vDate)})</div></th></tr>
@@ -231,13 +238,14 @@ function entryView(sp,adm){
 }
 function bindEntry(sp,adm){
   const g=id=>document.getElementById(id);
-  g('dt').onchange=e=>{vDate=e.target.value||today();emsg='';draw()};
+  g('dt').onchange=e=>{let v=e.target.value||today();if(me.role==='bst'&&(v<addDays(today(),-1)||v>today())){v=today();alert(BACKMSG)}vDate=v;emsg='';draw()};
   if(g('ss'))g('ss').onchange=e=>{rSup=e.target.value;emsg='';draw()};
   if(g('save'))g('save').onclick=async()=>{
     const entries=[];
     document.querySelectorAll('tr[data-p]').forEach(tr=>{const u=cfg.users.find(x=>x.phone===tr.dataset.p);
       entries.push({p:u.phone,n:u.name,a:Math.max(0,Math.floor(+tr.querySelector('.pv').value||0))})});
     const rid=vDate+'_'+sp,d={v:2,date:vDate,sup:sp,entries,by:me.name};
+    if(me.role==='bst'&&(vDate<addDays(today(),-1)||vDate>today())){g('ok').className='bad';g('ok').textContent=BACKMSG;return}
     g('save').disabled=true;g('save').textContent='Saving…';
     try{await setDoc(doc(fdb,'reports',rid),d,{merge:true});reports[rid]={...(reports[rid]||{}),...d};emsg='Saved ✓';dirty=false;draw()}
     catch(e){g('save').disabled=false;g('save').textContent='Save report';g('ok').className='bad';g('ok').textContent='Could not save ('+(e.code||'error')+'). Check internet and try again.'}};
@@ -283,7 +291,7 @@ const ct=(p,n,v,tpl)=>{if(!canC()||!contactOn)return'';const t=encodeURIComponen
   return `<span class="ct"><a href="tel:+${CC}${p}" target="_blank" rel="noopener">📞</a><a href="https://wa.me/${CC}${p}?text=${t}" target="_blank" rel="noopener">💬</a><a href="sms:+${CC}${p}?body=${t}" target="_blank" rel="noopener">✉️</a></span>`};
 const lst=(items,k)=>{if(!items.length)return'<p class="mu" style="padding:8px 0">No data yet.</p>';const mx=Math.max(1,...items.map(x=>x.v));
   return items.map((r,i)=>`<div class="it"><div class="rk ${k}">${i+1}</div><div class="in"><div class="nm2">${esc(r.n)}</div><div class="mu">${esc(r.sub)}</div><div class="mu">${esc(r.stat)}</div><div class="mu">${esc(r.stat2||'')}</div><div class="bar"><i class="${k}" style="width:${Math.max(3,Math.round(r.v/mx*100))}%"></i></div></div><div class="rt"><div class="sv ${k}${r.low?' low':''}">${r.v}</div>${r.c||''}</div></div>`).join('')};
-const sec=(k,title,sub,body,id)=>{const h=hid.has(id);
+const sec=(k,title,sub,body,id)=>{if(!(cfg.dash.dparams||DEFSHOW).includes(id))return'';const h=hid.has(id);
   return `<div class="card sec"><div class="hd ${k}">${title}${sub?`<small>${sub}</small>`:''}</div><div class="bd"><div class="xb"><button class="g" data-h="${id}">${h?'Show details':'Hide details'}</button>${canC()&&contactOn&&QD[id]&&QD[id].items.length?`<button class="g" data-q="${id}">📨 Send to all (${QD[id].items.length})</button>`:''}${canC()&&EXP[id]?`<button class="g" data-x="${id}" data-f="xlsx">⬇ Excel</button><button class="g" data-x="${id}" data-f="pdf">⬇ PDF</button>`:''}</div>${h?'':body}</div></div>`};
 function dl(id,f){
   const e=EXP[id];if(!e||!canC())return;
@@ -397,7 +405,7 @@ function dashView(){
   const spStatus=sec('all','🧹 Special activity report updated?',vDate+' · '+spy+' YES · '+(spv.length-spy)+' NO',spBody,'sp-status');
   const dTitle='Status of Special Pulse mode cleaning activity on '+dmy(vDate),spDates=Object.values(reports).filter(r=>r.sp).map(r=>r.date).sort();
   const spSections=sec('all','🧹 Daily special activity report',dTitle,spTbl(spSum(vDate,vDate),'sp-daily',dTitle,'Date '+vDate,true),'sp-daily')
-   +`<div class="card datebar"><div><b>Special activity: start date</b><div class="mu">${adm?'Choose the date to measure from':'Set by the Block Nodal Officer'}</div></div>${adm?`<input type="date" id="sf" value="${spFrom}" max="${vDate}">`:`<b>${dmy(spFrom)}</b>`}</div>`
+   +((cfg.dash.dparams||DEFSHOW).includes('sp-period')?`<div class="card datebar"><div><b>Special activity: start date</b><div class="mu">${adm?'Choose the date to measure from':'Set by the Block Nodal Officer'}</div></div>${adm?`<input type="date" id="sf" value="${spFrom}" max="${vDate}">`:`<b>${dmy(spFrom)}</b>`}</div>`:'')
    +sec('all','🧹 Cumulative special activity report from '+dmy(spFrom),dmy(spFrom)+' to '+dmy(vDate),spTbl(spSum(spFrom,vDate),'sp-period','Cumulative special activity report from '+dmy(spFrom),dmy(spFrom)+' to '+dmy(vDate),false),'sp-period')
    +sec('all','🧹 Cumulative special activity report since inception',spDates.length?'From '+dmy(spDates[0])+' to '+dmy(vDate):'',spTbl(spSum('0000-01-01',vDate),'sp-inc','Cumulative special activity report since inception','Up to '+dmy(vDate),false),'sp-inc');
   // ----- overview with charts -----
@@ -492,7 +500,7 @@ function dashView(){
   ${spStatus}
   ${sec('poor','⚠️ Today’s 10 poorest performers',vDate,lst(tPoor.map(x=>it(x,x.today,'day',D.target>0&&x.today<D.target)),'poor'),'today-poor')}
   ${sec('best','🏆 Today’s 10 best performers',vDate,lst(tBest.map(x=>it(x,x.today,'day',D.target>0&&x.today<D.target)),'best'),'today-best')}
-  <div class="card datebar"><div><b>Period start date</b><div class="mu">${adm?'Choose the date to measure from':'Set by the Block Nodal Officer'}</div></div>${adm?`<input type="date" id="fr" value="${from}" max="${vDate}">`:`<b>${from}</b>`}</div>
+  ${['period-poor','period-best','avg-low','period-all'].some(k=>(cfg.dash.dparams||DEFSHOW).includes(k))?`<div class="card datebar"><div><b>Period start date</b><div class="mu">${adm?'Choose the date to measure from':'Set by the Block Nodal Officer'}</div></div>${adm?`<input type="date" id="fr" value="${from}" max="${vDate}">`:`<b>${from}</b>`}</div>`:''}
   ${sec('poor','⚠️ 10 poorest performers since '+from,'Total '+esc(D.label)+', '+per,lst(pPoor.map(x=>it(x,x.s,'per')),'poor'),'period-poor')}
   ${sec('best','🏆 10 best performers since '+from,'Total '+esc(D.label)+', '+per,lst(pBest.map(x=>it(x,x.s,'per')),'best'),'period-best')}
   ${sec('poor','📉 Daily average below '+D.avgMin+' ('+low.length+')','Average per day, '+per,lst(low.map(x=>it(x,+f1(x.avg),'per')),'poor'),'avg-low')}
@@ -508,7 +516,7 @@ function spView(sp,adm,withDate){
   if(!sp)return'';
   const rid=vDate+'_'+sp,rep=reports[rid],v=(rep&&rep.sp)||{},u=cfg.users.find(x=>x.phone===sp);
   const tot=SPA.reduce((a,x)=>a+(+v[x[0]]||0),0);
-  return `<div class="card"><div class="row sp"><h2>${adm?'Special activity report':'Special Pulse mode cleaning activity'}</h2>${withDate?`<input type="date" id="dt" value="${vDate}" max="${today()}">`:''}</div>
+  return `<div class="card"><div class="row sp"><h2>${adm?'Special activity report':'Special Pulse mode cleaning activity'}</h2>${withDate?`<input type="date" id="dt" value="${vDate}" max="${today()}" ${me.role==='bst'?`min="${addDays(today(),-1)}"`:''}>`:''}</div>
   <p class="mu">${esc(gpName(u))} · ${rep&&rep.sp?'Saved earlier. You can edit and save again.':'Not yet submitted for this date.'}</p>
   ${SPA.map(a=>`<div class="row sp" style="padding:7px 0;border-bottom:1px solid var(--ln)"><span style="flex:1">${a[2]}</span><input type="number" min="0" class="spv" data-k="${a[0]}" value="${v[a[0]]??''}"></div>`).join('')}
   <div class="row sp" style="padding:10px 0"><b>Total cleanliness done</b><b id="spt">${tot}</b></div>
@@ -517,45 +525,64 @@ function spView(sp,adm,withDate){
 function bindSp(sp,adm,withDate){
   const g=id=>document.getElementById(id);
   if(!sp)return;
-  if(withDate)g('dt').onchange=e=>{vDate=e.target.value||today();spOk='';draw()};
+  if(withDate)g('dt').onchange=e=>{let v=e.target.value||today();if(me.role==='bst'&&(v<addDays(today(),-1)||v>today())){v=today();alert(BACKMSG)}vDate=v;spOk='';draw()};
   const upd=()=>{g('spt').textContent=[...document.querySelectorAll('.spv')].reduce((a,i)=>a+(+i.value||0),0)};
   document.querySelectorAll('.spv').forEach(i=>i.oninput=upd);
   g('spsave').onclick=async()=>{
     const vals={};document.querySelectorAll('.spv').forEach(i=>vals[i.dataset.k]=Math.max(0,Math.floor(+i.value||0)));
-    const rid=vDate+'_'+sp;g('spsave').disabled=true;g('spsave').textContent='Saving…';
+    const rid=vDate+'_'+sp;if(me.role==='bst'&&(vDate<addDays(today(),-1)||vDate>today())){g('spok').className='bad';g('spok').textContent=BACKMSG;return}
+    g('spsave').disabled=true;g('spsave').textContent='Saving…';
     try{await setDoc(doc(fdb,'reports',rid),{v:2,date:vDate,sup:sp,sp:vals,spBy:me.name},{merge:true});reports[rid]={...(reports[rid]||{v:2,date:vDate,sup:sp}),sp:vals};spOk='Saved ✓';dirty=false;draw()}
     catch(e){g('spsave').disabled=false;g('spsave').textContent='Save special activity report';g('spok').className='bad';g('spok').textContent='Could not save ('+(e.code||'error')+'). Check internet and try again.'}};
   if(g('spdel'))g('spdel').onclick=async()=>{const rid=vDate+'_'+sp;try{await setDoc(doc(fdb,'reports',rid),{sp:deleteField()},{merge:true});if(reports[rid])delete reports[rid].sp;spOk='';dirty=false;draw()}catch(e){}};
 }
 
-// ---------- Bulk message (Block Nodal Officer / Dealing Official) ----------
-let bulk={g:'sur',sup:'',msg:'Hello {name}, ',off:new Set()};
-const bulkList=()=>cfg.users.filter(u=>u.phone!==me.phone&&(bulk.g==='sur'?u.role==='sur':bulk.g==='bst'?u.role==='bst':bulk.g==='gp'?u.role==='gp':bulk.g==='sup1'?(u.role==='sur'&&u.sup===bulk.sup):bulk.g==='all'?(u.role==='sur'||u.role==='bst'):false));
-function bulkView(){
-  const sv=sups();if(!bulk.sup&&sv.length)bulk.sup=sv[0].phone;
-  const L=bulkList(),n=L.filter(u=>!bulk.off.has(u.phone)).length;
-  const G=[['sur','All surveyors'],['bst','All supervisors'],['sup1','Surveyors of one supervisor'],['all','All surveyors and supervisors'],['gp','GP Level Nodal Officers']];
-  return `<div class="card"><h2>Bulk message</h2>
-  <p class="mu">Choose who gets the message and type it. {name} is replaced by each person’s name. Then open the send panel.</p>
-  <select id="bg" class="full" style="margin-bottom:8px">${G.map(g=>`<option value="${g[0]}" ${bulk.g===g[0]?'selected':''}>${g[1]}</option>`).join('')}</select>
-  ${bulk.g==='sup1'?`<select id="bs" class="full" style="margin-bottom:8px">${sv.map(s=>`<option value="${s.phone}" ${bulk.sup===s.phone?'selected':''}>${esc(gpName(s))} · ${esc(s.name)}</option>`).join('')}</select>`:''}
-  <textarea id="bm" rows="4" class="full" style="margin-bottom:8px">${esc(bulk.msg)}</textarea>
-  <div class="row sp"><span class="mu" id="bc">${n} of ${L.length} selected</span><span><button class="s" id="ba" style="color:var(--ac)">Select all</button> <button class="s" id="bn" style="color:var(--ac)">Select none</button></span></div>
-  <div class="qlist" style="max-height:38vh">${L.map(u=>{const sp=cfg.users.find(x=>x.phone===u.sup);return `<label class="it" style="cursor:pointer"><input type="checkbox" data-b="${u.phone}" ${bulk.off.has(u.phone)?'':'checked'}><div class="in"><div class="nm2">${esc(u.name)}</div><div class="mu">${esc(ROLES[u.role])}${u.role==='sur'&&sp?' · '+esc(gpName(sp)):''} · ${u.phone}</div></div></label>`}).join('')||'<p class="mu">No one in this group yet.</p>'}</div>
-  <button id="bgo" class="full" style="margin-top:10px" ${n?'':'disabled'}>📨 Open send panel (${n})</button></div>`;
+// ---------- Message manager (Block Nodal Officer / Dealing Official) ----------
+let mm={g:'sur',sup:'',q:'',msg:null};
+const mmList=()=>{const tk=mm.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return cfg.users.filter(u=>u.phone!==me.phone&&(mm.g==='sur'?u.role==='sur':mm.g==='bst'?u.role==='bst':mm.g==='gp'?u.role==='gp':mm.g==='dealing'?u.role==='dealing':mm.g==='sup1'?(u.role==='sur'&&u.sup===mm.sup):(u.role==='sur'||u.role==='bst')))
+   .filter(u=>{const sp=cfg.users.find(x=>x.phone===u.sup);return tk.every(t=>(u.name+' '+u.phone+' '+ROLES[u.role]+' '+(sp?gpName(sp):u.role==='bst'?gpName(u):'')).toLowerCase().includes(t))})
+   .sort((a,b)=>a.name.localeCompare(b.name))};
+const mmRows=()=>{const L=mmList(),msg=mm.msg===null?(cfg.dash.mmsg||DEFMMSG):mm.msg;
+  return `<div class="mu" style="margin:8px 0 2px"><b>${L.length}</b> ${L.length===1?'person':'people'}</div>`+(L.map(u=>{const sp=cfg.users.find(x=>x.phone===u.sup),t=encodeURIComponent(fillMsg(u.name,{date:vDate},msg));
+    return `<div class="sr" style="cursor:default"><div class="av2">${esc(initials(u.name))}</div><div style="flex:1;min-width:0"><div class="nm2">${esc(u.name)}</div><div class="mu">${esc(ROLES[u.role])}${u.role==='sur'&&sp?' · '+esc(gpName(sp)):u.role==='bst'?' · '+esc(gpName(u)):''}</div><div class="mu">${u.phone}</div></div><span class="ct mmb"><a href="tel:+${CC}${u.phone}" target="_blank" rel="noopener" aria-label="Call ${esc(u.name)}">📞</a><a href="https://wa.me/${CC}${u.phone}?text=${t}" target="_blank" rel="noopener" aria-label="WhatsApp ${esc(u.name)}">💬</a><a href="sms:+${CC}${u.phone}?body=${t}" target="_blank" rel="noopener" aria-label="SMS ${esc(u.name)}">✉️</a></span></div>`}).join('')||'<p class="mu" style="padding:8px 0">No one found.</p>')};
+function msgManagerView(){
+  const sv=sups();if(!mm.sup&&sv.length)mm.sup=sv[0].phone;
+  const G=[['sur','All surveyors'],['bst','All supervisors'],['sup1','Surveyors of one supervisor'],['all','Surveyors and supervisors'],['gp','GP Level Nodal Officers'],['dealing','Block Dealing Officials']];
+  return `<div class="card"><h2>Message manager</h2><p class="mu">Find a person, then tap 📞 call, 💬 WhatsApp or ✉️ SMS. WhatsApp and SMS open with the message below; {name} becomes the person’s name.</p>
+  <textarea id="mmm" rows="3" class="full" style="margin-bottom:8px" aria-label="Message to send">${esc(mm.msg===null?(cfg.dash.mmsg||DEFMMSG):mm.msg)}</textarea>
+  <select id="mmg" class="full" style="margin-bottom:8px" aria-label="Who">${G.map(g=>`<option value="${g[0]}" ${mm.g===g[0]?'selected':''}>${g[1]}</option>`).join('')}</select>
+  ${mm.g==='sup1'?`<select id="mms" class="full" style="margin-bottom:8px" aria-label="Supervisor">${sv.map(s=>`<option value="${s.phone}" ${mm.sup===s.phone?'selected':''}>${esc(gpName(s))} · ${esc(s.name)}</option>`).join('')}</select>`:''}
+  <input id="mmq" class="sf full" type="search" placeholder="Search by name or phone" value="${esc(mm.q)}" aria-label="Search">
+  <div id="mmrows">${mmRows()}</div></div>${me.role==='block'?msgView():''}`;
 }
-function bindBulk(){
-  const g=id=>document.getElementById(id),keep=()=>{bulk.msg=g('bm').value};
-  g('bg').onchange=e=>{keep();bulk.g=e.target.value;bulk.off=new Set();draw()};
-  if(g('bs'))g('bs').onchange=e=>{keep();bulk.sup=e.target.value;bulk.off=new Set();draw()};
-  g('bm').oninput=keep;
-  const cnt=()=>{const L=bulkList(),n=L.filter(u=>!bulk.off.has(u.phone)).length;g('bc').textContent=n+' of '+L.length+' selected';g('bgo').textContent='📨 Open send panel ('+n+')';g('bgo').disabled=!n};
-  document.querySelectorAll('[data-b]').forEach(c=>c.onchange=()=>{c.checked?bulk.off.delete(c.dataset.b):bulk.off.add(c.dataset.b);cnt()});
-  g('ba').onclick=()=>{keep();bulk.off=new Set();draw()};
-  g('bn').onclick=()=>{keep();bulk.off=new Set(bulkList().map(u=>u.phone));draw()};
-  g('bgo').onclick=()=>{keep();
-    const items=bulkList().filter(u=>!bulk.off.has(u.phone)).map(u=>{const sp=cfg.users.find(x=>x.phone===u.sup);return{p:u.phone,n:u.name,gp:u.role==='sur'&&sp?gpName(sp):ROLES[u.role],msg:fillMsg(u.name,{date:vDate},bulk.msg),done:false}});
-    Q={title:'Bulk message',ch:'wa',group:bulk.msg.replace(/\{name\}/g,'all').replace(/\{date\}/g,vDate).trim(),items};renderQ()};
+function bindMsgMgr(){
+  const g=id=>document.getElementById(id),upd=()=>{g('mmrows').innerHTML=mmRows()};
+  g('mmm').oninput=e=>{mm.msg=e.target.value;upd()};
+  g('mmg').onchange=e=>{mm.g=e.target.value;draw()};
+  if(g('mms'))g('mms').onchange=e=>{mm.sup=e.target.value;draw()};
+  g('mmq').oninput=e=>{mm.q=e.target.value;upd()};
+  if(me.role==='block')bindMsg();
+}
+
+// ---------- Reports tab (Block Nodal Officer): edit reports, dashboard parameters ----------
+let repSub='entries';
+function reportsView(sp){
+  return `<div class="tabs" style="margin-bottom:10px"><button class="${repSub==='entries'?'on':''}" data-rs="entries">Edit reports</button><button class="${repSub==='params'?'on':''}" data-rs="params">Dashboard parameters</button></div>`+(repSub==='entries'?entryView(sp,true)+spView(sp,true,false):paramsView());
+}
+function paramsView(){
+  const sel=new Set(cfg.dash.dparams||DEFSHOW);
+  return `<div class="card"><h2>Dashboard parameters</h2><p class="mu">Choose what everyone sees on the dashboard. Only the parameters you tick are shown, in the usual order. This keeps the dashboard short.</p>
+  <details class="dd" open><summary>Choose parameters (<span id="pn">${sel.size}</span> selected) ▾</summary><div style="margin-top:8px">${DPARAMS.map(p=>`<label class="pli" style="cursor:pointer;min-height:44px"><span>${esc(p[1])}</span><input type="checkbox" data-pp="${p[0]}" ${sel.has(p[0])?'checked':''}></label>`).join('')}</div></details>
+  <div class="row" style="margin-top:10px"><button class="g" id="ppa">Select all</button><button class="g" id="ppn">Clear all</button></div>
+  <label style="display:block;margin-top:12px">Low average limit (a surveyor whose fortnight average is below this is flagged)<br><input id="pla" type="number" min="1" value="${cfg.dash.avgMin}" style="margin-top:4px"></label>
+  <button id="ppsave" class="full" style="margin-top:12px">Save dashboard</button><p id="ppok" class="ok"></p></div>`;
+}
+function bindParams(){
+  const g=id=>document.getElementById(id),boxes=()=>[...document.querySelectorAll('[data-pp]')],cnt=()=>{g('pn').textContent=boxes().filter(b=>b.checked).length};
+  boxes().forEach(b=>b.onchange=cnt);
+  g('ppa').onclick=()=>{boxes().forEach(b=>b.checked=true);cnt()};g('ppn').onclick=()=>{boxes().forEach(b=>b.checked=false);cnt()};
+  g('ppsave').onclick=()=>{cfg.dash.dparams=DPARAMS.map(p=>p[0]).filter(id=>boxes().find(b=>b.dataset.pp===id).checked);cfg.dash.avgMin=Math.max(1,+g('pla').value||20);saveCfg();g('ppok').textContent='Saved ✓ The dashboard now shows '+cfg.dash.dparams.length+' parameter(s).'};
 }
 
 // ---------- Users (admin, Excel upload) ----------
