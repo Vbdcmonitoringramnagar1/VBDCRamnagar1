@@ -92,6 +92,7 @@ table.grid.xwide{min-width:980px}table.grid.xwide th{min-width:84px}
 mark{background:rgba(240,138,36,.35);color:inherit;border-radius:3px;padding:0 1px}
 .mmb a{display:inline-grid;place-items:center;width:44px;height:44px;font-size:20px;margin:0}
 .dd{border:1px solid var(--ln);border-radius:12px;padding:10px 12px;background:var(--bg)}.dd summary{font-weight:700;cursor:pointer;min-height:32px;display:flex;align-items:center}
+#rov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:51;display:flex;align-items:flex-end;justify-content:center}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -166,11 +167,11 @@ function draw(){
   a.innerHTML=`<div class="banner"><div><h1>VBDC MONITORING, RAMNAGAR-I</h1><div class="sub">${esc(me.name)} · ${ROLES[me.role]}</div></div><button id="out">Log out</button></div>
   <div class="tabs">${T.map(t=>`<button class="${tab===t[0]?'on':''}" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>
   ${tab==='entry'?entryView(sp,false)+spView(sp,false,false):tab==='reports'?reportsView(sp):tab==='dash'?dashView():tab==='users'?usersView():tab==='bulk'?msgManagerView():tab==='pw'?pwView():formatView()}
-  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 18 · dashboard manager</div>`;
+  <div class="mu" style="text-align:center;padding:16px 0 8px">App version 20 · reasons + GP list</div>`;
   document.getElementById('out').onclick=()=>{Q=null;srch.open=null;renderQ();signOut(auth)};
   a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;dm=null;if(me.role==='bst'&&(tab==='entry'||tab==='sp')&&vDate<addDays(today(),-1))vDate=today();umsg='';emsg='';spOk='';draw()});
   if(tab==='entry'){bindEntry(sp,false);bindSp(sp,false,false)}if(tab==='reports'){a.querySelectorAll('[data-rs]').forEach(b=>b.onclick=()=>{repSub=b.dataset.rs;draw()});if(repSub==='entries'){bindEntry(sp,true);bindSp(sp,true,false)}else bindParams()}
-  if(tab==='dash'){document.getElementById('dt').onchange=e=>{vDate=e.target.value||today();draw()};const f=document.getElementById('fr');if(f)f.onchange=e=>{cfg.dash.from=e.target.value;saveCfg();draw()};const sfi=document.getElementById('sf');if(sfi)sfi.onchange=e=>{cfg.dash.spFrom=e.target.value;saveCfg();draw()};const cb=document.getElementById('ctb');if(cb)cb.onclick=()=>{contactOn=!contactOn;try{localStorage.setItem('contactOn',contactOn?'1':'0')}catch(e){}draw()};a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>dl(b.dataset.x,b.dataset.f));a.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{const i=b.dataset.h;hid.has(i)?hid.delete(i):hid.add(i);try{localStorage.setItem('hid',JSON.stringify([...hid]))}catch(e){}draw()});a.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const d=QD[b.dataset.q];if(!d)return;Q={title:d.title,ch:'wa',group:cfg.dash.gmsg||DEFGMSG,items:d.items.map(x=>({...x,done:false}))};renderQ()});if(document.getElementById('sq'))bindSearch();const sbk=document.getElementById('sback');if(sbk)sbk.onclick=()=>{srch.open=null;draw();const el=document.getElementById('srch');if(el)el.scrollIntoView()};a.querySelectorAll('[data-miss]').forEach(b=>b.onclick=()=>{const k=b.dataset.miss;ovMiss[k]=!ovMiss[k];draw()})}
+  if(tab==='dash'){document.getElementById('dt').onchange=e=>{vDate=e.target.value||today();draw()};const f=document.getElementById('fr');if(f)f.onchange=e=>{cfg.dash.from=e.target.value;saveCfg();draw()};const sfi=document.getElementById('sf');if(sfi)sfi.onchange=e=>{cfg.dash.spFrom=e.target.value;saveCfg();draw()};const cb=document.getElementById('ctb');if(cb)cb.onclick=()=>{contactOn=!contactOn;try{localStorage.setItem('contactOn',contactOn?'1':'0')}catch(e){}draw()};a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>dl(b.dataset.x,b.dataset.f));a.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{const i=b.dataset.h;hid.has(i)?hid.delete(i):hid.add(i);try{localStorage.setItem('hid',JSON.stringify([...hid]))}catch(e){}draw()});a.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const d=QD[b.dataset.q];if(!d)return;Q={title:d.title,ch:'wa',group:cfg.dash.gmsg||DEFGMSG,items:d.items.map(x=>({...x,done:false}))};renderQ()});if(document.getElementById('sq'))bindSearch();const sbk=document.getElementById('sback');if(sbk)sbk.onclick=()=>{srch.open=null;draw();const el=document.getElementById('srch');if(el)el.scrollIntoView()};a.querySelectorAll('[data-miss]').forEach(b=>b.onclick=()=>{const k=b.dataset.miss;ovMiss[k]=!ovMiss[k];draw()});a.querySelectorAll('[data-rsn]').forEach(b=>b.onclick=()=>openReason(b.dataset.rsn))}
   if(tab==='bulk')bindMsgMgr();if(tab==='users')bindUsers();if(tab==='format')bindFormat();if(tab==='pw')bindPw();
   dirty=false;a.oninput=()=>{dirty=true};
 }
@@ -291,7 +292,7 @@ const hid=new Set((()=>{try{return JSON.parse(localStorage.getItem('hid')||'[]')
 const ct=(p,n,v,tpl)=>{if(!canC()||!contactOn)return'';const t=encodeURIComponent(fillMsg(n,v,tpl));
   return `<span class="ct"><a href="tel:+${CC}${p}" target="_blank" rel="noopener">📞</a><a href="https://wa.me/${CC}${p}?text=${t}" target="_blank" rel="noopener">💬</a><a href="sms:+${CC}${p}?body=${t}" target="_blank" rel="noopener">✉️</a></span>`};
 const lst=(items,k)=>{if(!items.length)return'<p class="mu" style="padding:8px 0">No data yet.</p>';const mx=Math.max(1,...items.map(x=>x.v));
-  return items.map((r,i)=>`<div class="it"><div class="rk ${k}">${i+1}</div><div class="in"><div class="nm2">${esc(r.n)}</div><div class="mu">${esc(r.sub)}</div><div class="mu">${esc(r.stat)}</div><div class="mu">${esc(r.stat2||'')}</div><div class="bar"><i class="${k}" style="width:${Math.max(3,Math.round(r.v/mx*100))}%"></i></div></div><div class="rt"><div class="sv ${k}${r.low?' low':''}">${r.v}</div>${r.c||''}</div></div>`).join('')};
+  return items.map((r,i)=>`<div class="it"><div class="rk ${k}">${i+1}</div><div class="in"><div class="nm2">${esc(r.n)}</div><div class="mu">${esc(r.sub)}</div><div class="mu">${esc(r.stat)}</div><div class="mu">${esc(r.stat2||'')}</div>${r.extra||''}<div class="bar"><i class="${k}" style="width:${Math.max(3,Math.round(r.v/mx*100))}%"></i></div></div><div class="rt"><div class="sv ${k}${r.low?' low':''}">${r.v}</div>${r.c||''}</div></div>`).join('')};
 const sec=(k,title,sub,body,id)=>{if(!showIds().includes(id))return'';const h=hid.has(id);
   return `<div class="card sec"><div class="hd ${k}">${title}${sub?`<small>${sub}</small>`:''}</div><div class="bd"><div class="xb"><button class="g" data-h="${id}">${h?'Show details':'Hide details'}</button>${canC()&&contactOn&&QD[id]&&QD[id].items.length?`<button class="g" data-q="${id}">📨 Send to all (${QD[id].items.length})</button>`:''}${canC()&&EXP[id]?`<button class="g" data-x="${id}" data-f="xlsx">⬇ Excel</button><button class="g" data-x="${id}" data-f="pdf">⬇ PDF</button>`:''}</div>${h?'':body}</div></div>`};
 function dl(id,f){
@@ -320,16 +321,44 @@ const resHtml=()=>{const{tk,rows}=srchList(),shown=srch.more?rows:rows.slice(0,8
   return `<div class="row sp" style="margin:10px 0 2px"><div class="mu"><b>${rows.length} surveyor${rows.length===1?'':'s'} found</b></div><div class="mu">Fortnight average</div></div>`
    +(shown.map(x=>`<div class="sr" data-open="${x.p}" role="button" tabindex="0"><div class="av2">${esc(initials(x.n))}</div><div style="flex:1;min-width:0"><div class="nm2">${hl(x.n,tk)}</div><div class="mu">${hl(x.gp,tk)} · ${hl(x.sn,tk)}</div>${SD.phone?`<div class="mu">${hl(x.p,tk)}</div>`:''}</div><div style="text-align:right"><div class="sv">${x.avg===null?'-':x.avg.toFixed(1)}</div><span class="chp ${x.avg===null?'or':x.avg<SD.lim?'bad':'ok'}">${x.avg===null?'No data':x.avg<SD.lim?'Below '+SD.lim:'On track'}</span></div></div>`).join('')||'<p class="mu" style="padding:10px 0">No surveyor found. Try a different spelling or clear the filters.</p>')
    +(!srch.more&&rows.length>8?`<button class="g full" id="smore" style="margin-top:8px">Show ${rows.length-8} more</button>`:'')};
+const svOpts=()=>{if(!srch.gp&&!srch.sup)return'';
+  const rows=SD.list.filter(x=>(!srch.gp||x.gp===srch.gp)&&(!srch.sup||x.sp===srch.sup)).sort((a,b)=>a.n.localeCompare(b.n));
+  return `<select id="sv3" class="full" style="margin-top:8px" aria-label="Surveyors of the selected Gram Panchayat"><option value="">Choose from ${rows.length} surveyor${rows.length===1?'':'s'}${srch.gp?' of '+esc(srch.gp):''}</option>${rows.map(x=>`<option value="${x.p}">${esc(x.n)}${x.avg===null?'':' · avg '+x.avg.toFixed(1)}</option>`).join('')}</select>`};
 const openProfile=p=>{srch.open=p;draw();const el=document.getElementById('srch');if(el)el.scrollIntoView()};
 function bindSearch(){
   const g=id=>document.getElementById(id),box=g('sres');
   const more=()=>{const m=g('smore');if(m)m.onclick=()=>{srch.more=true;upd()}},upd=()=>{box.innerHTML=resHtml();more()};
   g('sq').oninput=e=>{srch.q=e.target.value;srch.more=false;upd()};
-  g('sg').onchange=e=>{srch.gp=e.target.value;srch.more=false;upd()};
-  g('ss2').onchange=e=>{srch.sup=e.target.value;srch.more=false;upd()};
+  const bindSv=()=>{const e=g('sv3');if(e)e.onchange=ev=>{if(ev.target.value)openProfile(ev.target.value)}},updSv=()=>{g('ssv').innerHTML=svOpts();bindSv()};
+  g('sg').onchange=e=>{srch.gp=e.target.value;srch.more=false;updSv();upd()};
+  g('ss2').onchange=e=>{srch.sup=e.target.value;srch.more=false;updSv();upd()};
   box.onclick=e=>{const r=e.target.closest('[data-open]');if(r)openProfile(r.dataset.open)};
   box.onkeydown=e=>{if(e.key==='Enter'){const r=e.target.closest('[data-open]');if(r)openProfile(r.dataset.open)}};
-  more();
+  more();bindSv();
+}
+const fd=d=>d.split('-').reverse().join('-');
+const whoL=k=>k==='s'?'Supervisor':'Nodal Officer';
+const reasonKey=()=>me.role==='block'?'a':me.role==='bst'?'s':null;
+const canReason=x=>me.role==='block'||(me.role==='bst'&&x.sp===me.phone);
+const reasonsOf=p=>{const out=[];Object.values(reports).forEach(r=>{if(r.reasons&&r.reasons[p])['s','a'].forEach(k=>{const e=r.reasons[p][k];if(e&&e.t)out.push({k,t:e.t,at:e.at||0,by:e.by||'',d:r.date})})});return out.sort((a,b)=>b.at-a.at)};
+function openReason(p){
+  const u=cfg.users.find(x=>x.phone===p),key=reasonKey();if(!u||!key)return;
+  const fs=fortStart(vDate),hist=reasonsOf(p),mine=hist.find(e=>e.k===key&&fortStart(e.d)===fs);
+  let o=document.getElementById('rov');if(!o){o=document.createElement('div');o.id='rov';document.body.appendChild(o)}
+  o.innerHTML=`<div class="qbox"><div class="row sp"><b>Reason for poor performance</b><button class="g" id="rx">Close</button></div><div class="mu" style="margin:4px 0 8px">${esc(u.name)} · fortnight ${fortLabel(vDate)}</div>
+  ${hist.length?`<div class="qlist" style="max-height:26vh">${hist.slice(0,6).map(e=>`<div class="pli" style="display:block"><b>${whoL(e.k)}</b> · ${fd(e.d)}${e.by?' · '+esc(e.by):''}<div style="margin-top:2px">${esc(e.t)}</div></div>`).join('')}</div>`:'<div class="mu">No reason added yet.</div>'}
+  <textarea id="rt" rows="4" maxlength="300" class="full" style="margin-top:8px" placeholder="Write the reason, for example: on leave, illness, flood, phone problem">${esc(mine?mine.t:'')}</textarea>
+  <div class="row" style="margin-top:8px"><button id="rs" class="full">Save reason</button></div><p id="rm" class="bad"></p></div>`;
+  o.querySelector('#rx').onclick=()=>o.remove();
+  o.querySelector('#rs').onclick=async()=>{
+    const t=o.querySelector('#rt').value.trim(),m=o.querySelector('#rm');
+    if(!t){m.textContent='Please write the reason first.';return}
+    if(!u.sup){m.textContent='This surveyor has no supervisor yet.';return}
+    const date=me.role==='block'?vDate:today(),rid=date+'_'+u.sup,ent={t:t.slice(0,300),at:Date.now(),by:me.name};
+    try{await setDoc(doc(fdb,'reports',rid),{v:2,date,sup:u.sup,reasons:{[p]:{[key]:ent}}},{merge:true});
+      const cur=reports[rid]||{v:2,date,sup:u.sup},rs=cur.reasons||{};reports[rid]={...cur,reasons:{...rs,[p]:{...(rs[p]||{}),[key]:ent}}};
+      o.remove();dirty=false;draw()}
+    catch(e){m.textContent='Could not save ('+(e.code||'error')+'). Check the internet and try again.'}};
 }
 function dashView(){
   const D=cfg.dash,adm=me.role==='block',pv=canC(),on=pv&&contactOn,N=10,from=D.from||addDays(today(),-14),per=from+' to '+vDate;
@@ -351,6 +380,13 @@ function dashView(){
      rows.slice().sort((a,b)=>b.v-a.v||cmp(a,b)).slice(0,N).forEach(r=>{r.x.ta++;if(cur)r.x.tf++});
      Object.keys(acc).forEach(p=>{const a=acc[p];if(a.fs===fsd&&a.c>0&&a.s/a.c<D.avgMin){st[p].la++;if(cur)st[p].lf++}})})}
   const rep=all.filter(x=>x.today!==null),pAll=all.filter(x=>x.c>0);
+  const RS={};Object.values(reports).forEach(r=>{if(!r.reasons)return;Object.keys(r.reasons).forEach(p=>['s','a'].forEach(k=>{const e=r.reasons[p]&&r.reasons[p][k];if(e&&e.t)(RS[p]=RS[p]||[]).push({k,t:e.t,at:e.at||0,by:e.by||'',d:r.date})}))});
+  Object.values(RS).forEach(a=>a.sort((x,y)=>y.at-x.at));
+  const rsFn=p=>(RS[p]||[]).filter(e=>fortStart(e.d)===FS);
+  const rsnHtml=x=>{const latest={};rsFn(x.p).forEach(e=>{if(!latest[e.k])latest[e.k]=e});
+    const lines=['s','a'].filter(k=>latest[k]).map(k=>`<div class="mu" style="margin-top:4px"><b>Reason (${whoL(k)} · ${fd(latest[k].d)}):</b> ${esc(latest[k].t)}</div>`).join('');
+    const key=reasonKey();
+    return lines+(canReason(x)?`<button class="g" data-rsn="${x.p}" style="margin-top:6px;padding:8px 12px;font-size:13px">${key&&latest[key]?'Edit reason':'Add reason'}</button>`:(lines?'':'<div class="mu" style="margin-top:4px">No reason added yet</div>'))};
   const tPoor=rep.slice().sort((a,b)=>a.today-b.today||a.n.localeCompare(b.n)).slice(0,N),tBest=rep.slice().sort((a,b)=>b.today-a.today||a.n.localeCompare(b.n)).slice(0,N);
   const pPoor=pAll.slice().sort((a,b)=>a.s-b.s).slice(0,N),pBest=pAll.slice().sort((a,b)=>b.s-a.s).slice(0,N);
   const low=pAll.filter(x=>x.avg<D.avgMin).sort((a,b)=>a.avg-b.avg);
@@ -377,6 +413,7 @@ function dashView(){
   reg('today-poor','Today poorest 10','Date '+vDate,tPoor);reg('today-best','Today best 10','Date '+vDate,tBest);
   reg('period-poor','Poorest 10 since the fortnight starting date','Period '+per,pPoor);reg('period-best','Best 10 since the fortnight starting date','Period '+per,pBest);
   reg('avg-low','Daily average below '+D.avgMin,'Period '+per,low);
+  EXP['avg-low'].head.push('Reason (this fortnight)');EXP['avg-low'].rows.forEach((r,i)=>r.push(rsFn(low[i].p).map(e=>whoL(e.k)+': '+e.t).join(' | ')));
   reg('today-all','Today total report (all VST)','Date '+vDate,tAll);reg('period-all','Cumulative report from the fortnight starting date','Period '+per,cAll);
   reg('inception','Cumulative report since inception','Up to '+vDate,iAll,true);
   const fq=all.filter(x=>x.pa||x.ta||x.la).sort((a,b)=>(b.pf+b.lf)-(a.pf+a.lf)||(b.pa+b.la)-(a.pa+a.la)||a.n.localeCompare(b.n));
@@ -458,7 +495,7 @@ function dashView(){
     <input id="sq" class="sf full" type="search" placeholder="Type a name${pv?', phone':''} or GP" value="${esc(srch.q)}" aria-label="Search surveyor">
     <div class="row" style="margin-top:8px"><select id="sg" class="full" aria-label="Gram Panchayat"><option value="">All Gram Panchayats</option>${gps.map(g=>`<option value="${esc(g)}" ${srch.gp===g?'selected':''}>${esc(g)}</option>`).join('')}</select>
     <select id="ss2" class="full" aria-label="Supervisor"><option value="">All supervisors</option>${sups().map(u=>`<option value="${u.phone}" ${srch.sup===u.phone?'selected':''}>${esc(gpName(u))} · ${esc(u.name)}</option>`).join('')}</select></div>
-    <div id="sres">${resHtml()}</div>`;
+    <div id="ssv">${svOpts()}</div><div id="sres">${resHtml()}</div>`;
   const profileHtml=()=>{
     const x=st[srch.open];if(!x){srch.open=null;return searchHtml()}
     const dayMap={};Object.values(reports).forEach(r=>{if(r.date<=vDate)(r.entries||[]).forEach(e=>{if(e.p===x.p)dayMap[r.date]=val(e)})});
@@ -477,12 +514,13 @@ function dashView(){
     EXP['profile']={fname:'surveyor-'+x.n.replace(/[^A-Za-z0-9]+/g,'-')+'-'+vDate,title:'Surveyor performance: '+x.n,sub:x.gp+' · supervisor '+x.sn+(pv?' · '+x.p:'')+' · up to '+vDate,head:['Item','Value'],
       rows:[['Today ('+vDate+')',x.today===null?'not reported':x.today],['This fortnight, cumulative ('+fortLabel(vDate)+')',x.fs||0],['This fortnight, days reported',x.fc||0],['This fortnight, average per day',f1(fAvg)],['Since inception, total',tot],['Since inception, days reported',ds.length],['Since inception, average per day',f1(iAvg)],['Best day / lowest day',best+' / '+lowv]]
         .concat(adm?[['Poorest-10 list (fortnight / inception)',x.pf+' / '+x.pa],['Average below '+D.avgMin+' list (fortnight / inception)',x.lf+' / '+x.la],['Best-10 list (fortnight / inception)',x.tf+' / '+x.ta]]:[])
-        .concat([['Special activity of '+x.gp+' (today / fortnight / inception)',gsp.t+' / '+gsp.f+' / '+gsp.i]],fns.map(f=>['Fortnight '+f.l,f.t+' in '+f.c+' day(s) (average '+f1(f.a)+')']),ds.slice().reverse().map(d=>['Day '+d,dayMap[d]]))};
+        .concat([['Special activity of '+x.gp+' (today / fortnight / inception)',gsp.t+' / '+gsp.f+' / '+gsp.i]].concat((RS[x.p]||[]).slice(0,5).map(e=>['Reason ('+whoL(e.k)+', '+fd(e.d)+')',e.t])),fns.map(f=>['Fortnight '+f.l,f.t+' in '+f.c+' day(s) (average '+f1(f.a)+')']),ds.slice().reverse().map(d=>['Day '+d,dayMap[d]]))};
     const banner=fAvg===null?'<div class="note">No report for this surveyor in this fortnight yet.</div>':`<div class="note" style="${fAvg<D.avgMin?'background:rgba(211,47,47,.1);color:var(--bad)':'background:rgba(46,158,91,.12);color:var(--ok)'}"><b>Fortnight average is ${fAvg.toFixed(1)} per day, ${fAvg<D.avgMin?'below':'on or above'} ${D.avgMin}.</b> Report date ${dmy(vDate)}.</div>`;
     return `<button class="g" id="sback" style="margin-bottom:10px">← Back to search results</button>
     <div class="row"><div class="av2" style="flex:0 0 52px;height:52px;font-size:17px">${esc(initials(x.n))}</div><div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:700">${esc(x.n)}</div><div class="mu">VBDC Surveyor · ${esc(x.gp)}</div><div class="mu">Supervisor: ${esc(x.sn)}${pv?' · '+esc(x.p):''}</div></div></div>
     ${contactOn&&pv?`<div style="margin:10px 0 2px">${ct(x.p,x.n,mv(x,'day'))}</div>`:''}
     <div style="margin:10px 0">${banner}</div>
+    ${(fAvg!==null&&fAvg<D.avgMin)||(RS[x.p]||[]).length?`<div class="ch"><h4>Reason for poor performance</h4>${(RS[x.p]||[]).length?(RS[x.p]||[]).slice(0,5).map(e=>`<div class="pli" style="display:block;border-top:0"><b>${whoL(e.k)}</b> · ${fd(e.d)}${e.by?' · '+esc(e.by):''}<div style="margin-top:2px">${esc(e.t)}</div></div>`).join(''):'<div class="mu">No reason added yet.</div>'}${canReason(x)?`<button class="g" data-rsn="${x.p}" style="margin-top:8px">${(RS[x.p]||[]).some(e=>e.k===reasonKey()&&fortStart(e.d)===FS)?'Edit reason':'Add reason'}</button>`:''}</div>`:''}
     <h4 style="margin:12px 0 6px">Survey performance</h4>
     <div class="kg">${kt('Today',x.today===null?'-':x.today,x.today===null?'not reported':'rank '+rt+' of '+repT.length+' who reported')}${kt('This fortnight, cumulative',x.fs||0,(x.fc||0)+' days'+(rf?' · rank '+rf+' of '+repF.length:''))}${kt('Fortnight average',f1(fAvg),'limit '+D.avgMin,fAvg!==null&&fAvg<D.avgMin?'bad':'')}${kt('Since inception',tot,ds.length+' days reported')}${kt('Average since inception',f1(iAvg),'per day')}${kt('Best day / lowest day',best+' / '+lowv,'since inception')}</div>
     <div class="ch"><h4>Daily count, last 7 days</h4>${chart}<div class="mu">Dashed line = ${D.avgMin}. Red days are under ${D.avgMin}, green days are ${D.avgMin} or more. A dash means no report.</div></div>
@@ -504,7 +542,7 @@ function dashView(){
   ${['period-poor','period-best','avg-low','period-all'].some(k=>showIds().includes(k))?`<div class="card datebar"><div><b>Fortnight starting date</b><div class="mu">${adm?'Choose the date to measure from':'Set by the Block Nodal Officer'}</div></div>${adm?`<input type="date" id="fr" value="${from}" max="${vDate}">`:`<b>${from}</b>`}</div>`:''}
   ${sec('poor','⚠️ 10 poorest performers since '+from,'Total '+esc(D.label)+', '+per,lst(pPoor.map(x=>it(x,x.s,'per')),'poor'),'period-poor')}
   ${sec('best','🏆 10 best performers since '+from,'Total '+esc(D.label)+', '+per,lst(pBest.map(x=>it(x,x.s,'per')),'best'),'period-best')}
-  ${sec('poor','📉 Daily average below '+D.avgMin+' ('+low.length+')','Average per day, '+per,lst(low.map(x=>it(x,+f1(x.avg),'per')),'poor'),'avg-low')}
+  ${sec('poor','📉 Daily average below '+D.avgMin+' ('+low.length+')','Average per day, '+per,lst(low.map(x=>({...it(x,+f1(x.avg),'per'),extra:rsnHtml(x)})),'poor'),'avg-low')}
   ${freqSec}
   ${sec('all','📋 Today’s total report (all VST)',vDate+' · '+rep.length+' of '+all.length+' surveyors reported · total '+tTot+' surveys',tb(tAll,[['Today',x=>x.today===null?'-':x.today],['Avg',x=>f1(x.avg)],['Total',x=>x.s]],'day'),'today-all')}
   ${sec('all','📋 Cumulative report from the fortnight starting date',per+' · total '+pTot+' surveys',tb(cAll,[['Days',x=>x.c],['Avg',x=>f1(x.avg)],['Total',x=>x.s]],'per'),'period-all')}
